@@ -56,5 +56,4 @@ pipeline.py     Master orchestrator
 
 ## Build status
 
-Sessions completed: 1 (scaffold), 2 (SerpApi), 3 (scorer)  
-Sessions remaining: YouTube (4), enrichment + Instantly (5), Reddit (6), nonprofits + professional (7), orchestrator + webhook (8)
+Sessions completed: 1–8 (all complete) ✓

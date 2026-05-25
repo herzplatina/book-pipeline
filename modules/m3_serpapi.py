@@ -155,17 +155,6 @@ def discover(reduced: Optional[bool] = None) -> list[dict]:
 
 
 if __name__ == "__main__":
-    from scoring import claude_scorer
+    from modules.runner import run
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-    )
-    raw = discover(reduced=True)
-    scored = [claude_scorer.score(lead) for lead in raw]
-    qualified = [lead for lead in scored if (lead.get("Claude Score") or 0) >= 7]
-    print(f"\nFound {len(qualified)} qualified leads (score >= 7) from {len(raw)} raw")
-    for lead in qualified:
-        print(
-            f"  {lead.get('Claude Score', '?'):>2} | {lead.get('Name', ''):<30} | "
-            f"{lead.get('City', ''):<15} | {lead['Source URL'][:60]}"
-        )
+    run(lambda: discover(reduced=True), detail_field="City", detail_width=15)

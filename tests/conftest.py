@@ -8,7 +8,6 @@ _REQUIRED_STUBS = {
     "REDDIT_CLIENT_SECRET": "stub",
     "REDDIT_USER_AGENT": "stub",
     "SERPAPI_KEY": "stub",
-    "APIFY_TOKEN": "stub",
     "LISTENNOTES_KEY": "stub",
     "APOLLO_KEY": "stub",
     "ANTHROPIC_API_KEY": "stub",
