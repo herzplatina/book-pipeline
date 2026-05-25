@@ -1,3 +1,5 @@
+"""Shared schema constants and validation helpers for the Contacts CRM table."""
+
 # Literal archetype values used across the pipeline
 ARCHETYPES = ("extremist", "criminal", "health", "driver", "bluecollar", "other")
 

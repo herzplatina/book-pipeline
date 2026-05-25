@@ -7,8 +7,6 @@ Scoring is handled by the shared ``scoring.claude_scorer`` module (Session 3).
 import itertools
 import logging
 import time
-from typing import Optional
-
 import requests
 from newspaper import Article
 
@@ -91,7 +89,7 @@ def _build_lead(
     }
 
 
-def discover(reduced: Optional[bool] = None) -> list[dict]:
+def discover(reduced: bool | None = None) -> list[dict]:
     """Run the SerpApi city/date/query matrix and return raw leads.
 
     Args:

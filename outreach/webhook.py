@@ -47,7 +47,8 @@ def _notify(lead_name: str, email: str, summary: str) -> None:
         except Exception as exc:
             logger.warning("Slack notify failed: %s", exc)
     if NOTIFY_EMAIL:
-        logger.info("TODO: send email to %s — %s", NOTIFY_EMAIL, msg)
+        # TODO: b/0 - implement email notification for positive replies
+        logger.debug("Email notification not yet implemented; target=%s", NOTIFY_EMAIL)
 
 
 @app.route("/webhook/instantly", methods=["POST"])

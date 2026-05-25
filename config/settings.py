@@ -1,3 +1,9 @@
+"""Environment-driven configuration for the book pipeline.
+
+All values are read from environment variables (loaded from .env via dotenv).
+Call _require() for mandatory keys; use os.environ.get() for optional ones.
+"""
+
 import os
 from dotenv import load_dotenv
 

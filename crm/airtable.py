@@ -1,6 +1,7 @@
+"""Airtable CRM client — Contacts table and Manual DM Queue operations."""
+
 import requests
 from datetime import datetime, timezone
-from typing import Optional
 
 from crm.schema import CONTACTS_FIELDS, validate_lead, is_handcraft_required
 
@@ -15,6 +16,8 @@ def _escape(value: str) -> str:
 
 
 class AirtableClient:
+    """Thin wrapper around the Airtable REST API for this pipeline's tables."""
+
     def __init__(self, pat: str, base_id: str):
         self._headers = {
             "Authorization": f"Bearer {pat}",
@@ -40,26 +43,31 @@ class AirtableClient:
                 break
         return records
 
-    def find_by_email(self, email: str) -> Optional[dict]:
+    def find_by_email(self, email: str) -> dict | None:
+        """Return the first Contacts record matching email, or None."""
         formula = f"{{Email}}='{_escape(email)}'"
         records = self._get({"filterByFormula": formula, "maxRecords": 1})
         return records[0] if records else None
 
-    def find_by_source_url(self, url: str) -> Optional[dict]:
+    def find_by_source_url(self, url: str) -> dict | None:
+        """Return the first Contacts record matching source URL, or None."""
         formula = f"{{Source URL}}='{_escape(url)}'"
         records = self._get({"filterByFormula": formula, "maxRecords": 1})
         return records[0] if records else None
 
-    def find_by_instantly_lead_id(self, lead_id: str) -> Optional[dict]:
+    def find_by_instantly_lead_id(self, lead_id: str) -> dict | None:
+        """Return the first Contacts record matching Instantly Lead ID, or None."""
         formula = f"{{Instantly Lead ID}}='{_escape(lead_id)}'"
         records = self._get({"filterByFormula": formula, "maxRecords": 1})
         return records[0] if records else None
 
     def find_by_status(self, status: str) -> list[dict]:
+        """Return all Contacts records with the given status."""
         formula = f"{{Status}}='{_escape(status)}'"
         return self._get({"filterByFormula": formula})
 
     def create_record(self, table_name: str, fields: dict) -> dict:
+        """Create a new record in the named table. Returns the created record."""
         url = f"{_BASE_URL}/{self._base_id}/{table_name}"
         resp = requests.post(
             url, headers=self._headers, json={"fields": fields}, timeout=_TIMEOUT
@@ -96,6 +104,7 @@ class AirtableClient:
         return resp.json()
 
     def update(self, record_id: str, fields: dict) -> dict:
+        """PATCH specific fields on an existing Contacts record."""
         resp = requests.patch(
             f"{self._table_url}/{record_id}",
             headers=self._headers,
@@ -105,7 +114,8 @@ class AirtableClient:
         resp.raise_for_status()
         return resp.json()
 
-    def list_manual_queue(self, channel: Optional[str] = None) -> list[dict]:
+    def list_manual_queue(self, channel: str | None = None) -> list[dict]:
+        """Return all Manual DM Queue records, optionally filtered by channel."""
         url = f"{_BASE_URL}/{self._base_id}/Manual DM Queue"
         params = {}
         if channel:
@@ -115,9 +125,11 @@ class AirtableClient:
         return resp.json().get("records", [])
 
     def add_to_manual_queue(self, fields: dict) -> dict:
+        """Create a new record in the Manual DM Queue table."""
         return self.create_record("Manual DM Queue", fields)
 
     def mark_dm_sent(self, record_id: str) -> dict:
+        """Set Status='Sent' on a Manual DM Queue record."""
         url = f"{_BASE_URL}/{self._base_id}/Manual DM Queue/{record_id}"
         resp = requests.patch(
             url,
@@ -130,6 +142,7 @@ class AirtableClient:
 
 
 def get_client() -> AirtableClient:
+    """Return a fully configured AirtableClient using env-loaded credentials."""
     from config.settings import AIRTABLE_PAT, AIRTABLE_BASE_ID
 
     return AirtableClient(AIRTABLE_PAT, AIRTABLE_BASE_ID)

@@ -10,7 +10,7 @@ get_disposition(score, match)  'auto' | 'review' | 'discard' per EDD thresholds.
 
 import json
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 import anthropic
 
@@ -50,7 +50,7 @@ class ClaudeScorer:
         self,
         text: str,
         archetype_hint: str | None = None,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Score raw text string. Returns parsed JSON dict or None on failure."""
         if not text.strip():
             return None
@@ -112,7 +112,7 @@ class ClaudeScorer:
 #   scored = [claude_scorer.score(lead) for lead in all_raw_leads]
 # ---------------------------------------------------------------------------
 
-_scorer: Optional[ClaudeScorer] = None
+_scorer: ClaudeScorer | None = None
 
 
 def _get_scorer() -> ClaudeScorer:

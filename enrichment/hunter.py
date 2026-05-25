@@ -34,7 +34,7 @@ def _domain_from_url(url: str) -> str | None:
         host = re.sub(r"^www\.", "", host)
         if "." in host and " " not in host and "@" not in host:
             return host
-    except Exception:
+    except ValueError:
         pass
     return None
 

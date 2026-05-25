@@ -16,6 +16,8 @@ import importlib
 import logging
 from collections.abc import Callable
 
+logger = logging.getLogger(__name__)
+
 _REGISTRY: dict[str, dict] = {
     "m1_youtube": {"detail_field": "Archetype"},
     "m2_reddit": {
@@ -47,13 +49,18 @@ def run(
     raw = discover_fn()
     scored = [claude_scorer.score(lead) for lead in raw]
     qualified = [lead for lead in scored if (lead.get("Claude Score") or 0) >= 7]
-    print(f"\nFound {len(qualified)} qualified leads (score >= 7) from {len(raw)} raw")
+    logger.info(
+        "Found %d qualified leads (score >= 7) from %d raw", len(qualified), len(raw)
+    )
     for lead in qualified:
-        print(
-            f"  {lead.get('Claude Score', '?'):>2} | "
-            f"{lead.get(id_field, ''):<{id_width}} | "
-            f"{lead.get(detail_field, ''):<{detail_width}} | "
-            f"{lead['Source URL'][:url_width]}"
+        logger.info(
+            "  %2s | %-*s | %-*s | %s",
+            lead.get("Claude Score", "?"),
+            id_width,
+            lead.get(id_field, ""),
+            detail_width,
+            lead.get(detail_field, ""),
+            lead["Source URL"][:url_width],
         )
 
 

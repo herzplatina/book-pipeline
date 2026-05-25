@@ -5,6 +5,7 @@ dispatch(lead) → routes and fires the appropriate outreach action.
 """
 
 import logging
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -14,6 +15,9 @@ from config.settings import (
     INSTANTLY_OPENING_LINE_DEFAULT,
 )
 from crm.schema import is_handcraft_required
+
+if TYPE_CHECKING:
+    from crm.airtable import AirtableClient
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +85,7 @@ def _add_to_instantly(lead: dict) -> dict:
     return lead
 
 
-def dispatch(lead: dict, airtable_client=None) -> dict:
+def dispatch(lead: dict, airtable_client: "AirtableClient | None" = None) -> dict:
     """Route and dispatch outreach for a lead. Mutates and returns lead.
 
     Args:
