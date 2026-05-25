@@ -1,6 +1,7 @@
 .env
-data/*.json
-data/*.csv
+# All lead output — never commit real data regardless of format
+data/*
+!data/.gitkeep
 __pycache__/
 *.pyc
 *.pyo
