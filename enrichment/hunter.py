@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from config.settings import HUNTER_CONFIDENCE_MIN, HUNTER_KEY
+from config.settings import HUNTER_CONFIDENCE_MIN, require_env
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def _hunter_email_finder(
                 "domain": domain,
                 "first_name": first_name,
                 "last_name": last_name,
-                "api_key": HUNTER_KEY,
+                "api_key": require_env("HUNTER_KEY"),
             },
             timeout=15,
         )
@@ -70,7 +70,11 @@ def _hunter_domain_search(domain: str) -> tuple[str, int] | None:
     try:
         resp = requests.get(
             f"{_HUNTER_BASE}/domain-search",
-            params={"domain": domain, "limit": 10, "api_key": HUNTER_KEY},
+            params={
+                "domain": domain,
+                "limit": 10,
+                "api_key": require_env("HUNTER_KEY"),
+            },
             timeout=15,
         )
         resp.raise_for_status()

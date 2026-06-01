@@ -17,10 +17,10 @@ from bs4 import BeautifulSoup
 from newspaper import Article
 
 from config.settings import (
-    LISTENNOTES_KEY,
     LISTENNOTES_QUERIES,
     NONPROFIT_SLEEP_SECONDS,
     NONPROFIT_URLS,
+    require_env,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,8 +100,8 @@ def _fetch_article_text(url: str) -> str:
         article.download()
         article.parse()
         return article.text
-    except Exception as exc:
-        logger.warning("Article parse failed %s: %s", url, exc)
+    except Exception:
+        logger.exception("Article parse failed url=%s", url)
         return ""
 
 
@@ -148,7 +148,7 @@ def _listennotes_search(query: str) -> list[dict]:
                 "sort_by_date": 0,
                 "language": "English",
             },
-            headers={"X-ListenAPI-Key": LISTENNOTES_KEY},
+            headers={"X-ListenAPI-Key": require_env("LISTENNOTES_KEY")},
             timeout=20,
         )
         resp.raise_for_status()

@@ -15,10 +15,10 @@ from youtube_transcript_api import (
 )
 
 from config.settings import (
-    YOUTUBE_API_KEY,
     YOUTUBE_FILTERS,
     YOUTUBE_SEARCH_QUERIES,
     YOUTUBE_SLEEP_SECONDS,
+    require_env,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,12 @@ _YT_BASE_URL = "https://www.youtube.com/watch?v="
 
 
 def _build_client():
-    return build("youtube", "v3", developerKey=YOUTUBE_API_KEY, cache_discovery=False)
+    return build(
+        "youtube",
+        "v3",
+        developerKey=require_env("YOUTUBE_API_KEY"),
+        cache_discovery=False,
+    )
 
 
 def _youtube_search(client, query: str) -> list[dict]:
@@ -50,8 +55,8 @@ def _get_transcript(video_id: str) -> str:
         return " ".join(seg["text"] for seg in segments)
     except (TranscriptsDisabled, NoTranscriptFound):
         return ""
-    except Exception as exc:
-        logger.warning("Transcript fetch failed for %s: %s", video_id, exc)
+    except Exception:
+        logger.exception("Transcript fetch failed for video_id=%s", video_id)
         return ""
 
 
@@ -103,8 +108,8 @@ def discover() -> list[dict]:
 
             try:
                 items = _youtube_search(client, query)
-            except Exception as exc:
-                logger.error("YouTube search failed: %s", exc)
+            except Exception:
+                logger.exception("YouTube search failed for archetype=%s", archetype)
                 time.sleep(YOUTUBE_SLEEP_SECONDS)
                 continue
 

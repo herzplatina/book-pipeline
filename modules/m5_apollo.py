@@ -13,7 +13,7 @@ import time
 
 import requests
 
-from config.settings import APOLLO_KEY, APOLLO_SEARCH_PAYLOAD, APOLLO_SLEEP_SECONDS
+from config.settings import APOLLO_SEARCH_PAYLOAD, APOLLO_SLEEP_SECONDS, require_env
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ _MAX_PAGES = 3
 def _apollo_search(page: int) -> list[dict]:
     """Call Apollo mixed_people/search for one page. Returns raw person dicts."""
     payload = copy.deepcopy(APOLLO_SEARCH_PAYLOAD)
-    payload["api_key"] = APOLLO_KEY
+    payload["api_key"] = require_env("APOLLO_KEY")
     payload["page"] = page
     try:
         resp = requests.post(

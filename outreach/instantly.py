@@ -11,8 +11,8 @@ import requests
 
 from config.settings import (
     INSTANTLY_CAMPAIGNS,
-    INSTANTLY_KEY,
     INSTANTLY_OPENING_LINE_DEFAULT,
+    require_env,
 )
 from crm.schema import is_handcraft_required
 
@@ -70,7 +70,7 @@ def _add_to_instantly(lead: dict) -> dict:
         )
 
     payload = {
-        "api_key": INSTANTLY_KEY,
+        "api_key": require_env("INSTANTLY_KEY"),
         "campaign_id": campaign_id,
         "email": lead["Email"],
         "first_name": lead.get("First Name", ""),
@@ -118,7 +118,9 @@ def dispatch(lead: dict, airtable_client: "AirtableClient | None" = None) -> dic
                 }
             )
             logger.info("Queued for review: %s", lead.get("Source URL"))
-        except Exception as exc:
-            logger.error("Manual queue write failed: %s", exc)
+        except Exception:
+            logger.exception(
+                "Manual queue write failed for url=%s", lead.get("Source URL", "")
+            )
 
     return lead

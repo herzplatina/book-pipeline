@@ -17,13 +17,11 @@ import requests
 
 from config.settings import (
     ARCTIC_SHIFT_DATE_RANGE,
-    REDDIT_CLIENT_ID,
-    REDDIT_CLIENT_SECRET,
     REDDIT_FILTERS,
     REDDIT_KEYWORDS,
     REDDIT_SLEEP_SECONDS,
-    REDDIT_USER_AGENT,
     SUBREDDITS,
+    require_env,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,9 +35,9 @@ _ARCTIC_MAX_KEYWORDS = 3
 
 def _praw_client() -> praw.Reddit:
     return praw.Reddit(
-        client_id=REDDIT_CLIENT_ID,
-        client_secret=REDDIT_CLIENT_SECRET,
-        user_agent=REDDIT_USER_AGENT,
+        client_id=require_env("REDDIT_CLIENT_ID"),
+        client_secret=require_env("REDDIT_CLIENT_SECRET"),
+        user_agent=require_env("REDDIT_USER_AGENT"),
         check_for_async=False,
     )
 
@@ -100,8 +98,8 @@ def _praw_fetch(reddit: praw.Reddit, subreddit: str, archetype: str) -> list[dic
                     subreddit=subreddit,
                 )
             )
-    except Exception as exc:
-        logger.warning("PRAW fetch failed for r/%s: %s", subreddit, exc)
+    except Exception:
+        logger.exception("PRAW fetch failed for subreddit=%s", subreddit)
     return leads
 
 

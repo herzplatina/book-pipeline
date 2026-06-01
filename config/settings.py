@@ -1,7 +1,8 @@
 """Environment-driven configuration for the book pipeline.
 
 All values are read from environment variables (loaded from .env via dotenv).
-Call _require() for mandatory keys; use os.environ.get() for optional ones.
+Call require_env() at the integration boundary so module imports stay cheap and
+module-specific smoke tests only require the credentials they actually use.
 """
 
 import os
@@ -10,28 +11,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _require(key: str) -> str:
+def require_env(key: str) -> str:
+    """Return an environment variable or raise a clear configuration error."""
     val = os.environ.get(key)
     if not val:
         raise EnvironmentError(f"Missing required environment variable: {key}")
     return val
 
 
-# --- API Keys ---
-YOUTUBE_API_KEY = _require("YOUTUBE_API_KEY")
-REDDIT_CLIENT_ID = _require("REDDIT_CLIENT_ID")
-REDDIT_CLIENT_SECRET = _require("REDDIT_CLIENT_SECRET")
-REDDIT_USER_AGENT = _require("REDDIT_USER_AGENT")
-SERPAPI_KEY = _require("SERPAPI_KEY")
+# --- Optional integration values ---
+# Required credentials are intentionally loaded lazily via require_env().
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
-LISTENNOTES_KEY = _require("LISTENNOTES_KEY")
-APOLLO_KEY = _require("APOLLO_KEY")
-ANTHROPIC_API_KEY = _require("ANTHROPIC_API_KEY")
-HUNTER_KEY = _require("HUNTER_KEY")
-INSTANTLY_KEY = _require("INSTANTLY_KEY")
-AIRTABLE_PAT = _require("AIRTABLE_PAT")
-AIRTABLE_BASE_ID = _require("AIRTABLE_BASE_ID")
-
 NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL", "")
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")

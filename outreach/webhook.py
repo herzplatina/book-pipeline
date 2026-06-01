@@ -44,8 +44,8 @@ def _notify(lead_name: str, email: str, summary: str) -> None:
     if SLACK_WEBHOOK_URL:
         try:
             requests.post(SLACK_WEBHOOK_URL, json={"text": msg}, timeout=5)
-        except Exception as exc:
-            logger.warning("Slack notify failed: %s", exc)
+        except Exception:
+            logger.exception("Slack notify failed")
     if NOTIFY_EMAIL:
         # TODO: b/0 - implement email notification for positive replies
         logger.debug("Email notification not yet implemented; target=%s", NOTIFY_EMAIL)
@@ -92,8 +92,8 @@ def instantly_reply():
             logger.warning(
                 "No Airtable record found for Instantly Lead ID: %s", lead_id
             )
-    except Exception as exc:
-        logger.error("Webhook handler error: %s", exc)
+    except Exception:
+        logger.exception("Webhook handler error")
         return jsonify({"ok": False, "error": "internal error"}), 500
 
     return jsonify({"ok": True})

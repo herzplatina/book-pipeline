@@ -14,8 +14,8 @@ from config.settings import (
     CITIES,
     DATE_WINDOWS,
     QUERY_TERMS,
-    SERPAPI_KEY,
     SERPAPI_SLEEP_SECONDS,
+    require_env,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def _serpapi_search(
         "as_qdr": "custom",
         "tbs": f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}",
         "num": 10,
-        "api_key": SERPAPI_KEY,
+        "api_key": require_env("SERPAPI_KEY"),
     }
     resp = requests.get(_SERPAPI_URL, params=params, timeout=30)
     resp.raise_for_status()
@@ -64,8 +64,8 @@ def _fetch_article(url: str) -> tuple[str, list[str]]:
         article.download()
         article.parse()
         return article.text, article.authors
-    except Exception as exc:
-        logger.warning("Failed to fetch %s: %s", url, exc)
+    except Exception:
+        logger.exception("Failed to fetch article url=%s", url)
         return "", []
 
 

@@ -1,5 +1,6 @@
 """Unit tests for pipeline.py — all external I/O mocked."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pipeline
@@ -227,3 +228,41 @@ def test_run_discovery_error_continues(
     # Should not raise even when a module fails
     result = pipeline.run()
     assert result["discovered"] == 0
+
+
+@patch("pipeline.get_client")
+@patch("pipeline.dispatch")
+@patch("pipeline.enrich")
+@patch("pipeline.score")
+@patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["serpapi"], "discover", side_effect=Exception("API down"))
+@patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["youtube"], "discover", return_value=[])
+def test_run_writes_report_artifacts(
+    mock_yt,
+    mock_rd,
+    mock_sp,
+    mock_np,
+    mock_ap,
+    mock_score,
+    mock_enrich,
+    mock_dispatch,
+    mock_at,
+    tmp_path,
+):
+    mock_at.return_value.upsert = MagicMock()
+
+    result = pipeline.run(report_dir=tmp_path)
+
+    assert result["errors"] == 1
+    summary_files = list(tmp_path.glob("*-summary.json"))
+    error_files = list(tmp_path.glob("*-errors.log"))
+    assert len(summary_files) == 1
+    assert len(error_files) == 1
+
+    payload = json.loads(summary_files[0].read_text(encoding="utf-8"))
+    assert payload["summary"]["discovered"] == 0
+    assert payload["errors"][0]["stage"] == "discover"
+    assert payload["errors"][0]["module"] == "serpapi"
+    assert "API down" in error_files[0].read_text(encoding="utf-8")

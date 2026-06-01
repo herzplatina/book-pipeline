@@ -143,6 +143,6 @@ class AirtableClient:
 
 def get_client() -> AirtableClient:
     """Return a fully configured AirtableClient using env-loaded credentials."""
-    from config.settings import AIRTABLE_PAT, AIRTABLE_BASE_ID
+    from config.settings import require_env
 
-    return AirtableClient(AIRTABLE_PAT, AIRTABLE_BASE_ID)
+    return AirtableClient(require_env("AIRTABLE_PAT"), require_env("AIRTABLE_BASE_ID"))

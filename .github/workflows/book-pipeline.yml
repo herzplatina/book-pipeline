@@ -1,0 +1,85 @@
+name: Book Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      modules:
+        description: "Space-separated modules to run, e.g. serpapi or 'youtube serpapi'"
+        required: false
+        default: "serpapi"
+      log_level:
+        description: "Pipeline log level"
+        required: false
+        default: "INFO"
+        type: choice
+        options:
+          - DEBUG
+          - INFO
+          - WARNING
+          - ERROR
+  schedule:
+    - cron: "0 15 * * 1"
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+      REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+      REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+      SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+      LISTENNOTES_KEY: ${{ secrets.LISTENNOTES_KEY }}
+      APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      HUNTER_KEY: ${{ secrets.HUNTER_KEY }}
+      INSTANTLY_KEY: ${{ secrets.INSTANTLY_KEY }}
+      AIRTABLE_PAT: ${{ secrets.AIRTABLE_PAT }}
+      AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+      INSTANTLY_CAMPAIGN_HEALTH: ${{ secrets.INSTANTLY_CAMPAIGN_HEALTH }}
+      INSTANTLY_CAMPAIGN_DRIVER: ${{ secrets.INSTANTLY_CAMPAIGN_DRIVER }}
+      INSTANTLY_CAMPAIGN_BLUECOLLAR: ${{ secrets.INSTANTLY_CAMPAIGN_BLUECOLLAR }}
+      INSTANTLY_CAMPAIGN_TEDX: ${{ secrets.INSTANTLY_CAMPAIGN_TEDX }}
+      INSTANTLY_CAMPAIGN_PODCAST: ${{ secrets.INSTANTLY_CAMPAIGN_PODCAST }}
+      NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Run checks
+        run: |
+          ruff check .
+          python -m pytest -q
+
+      - name: Run pipeline
+        run: |
+          mkdir -p data/runs
+          MODULES="${{ github.event.inputs.modules || vars.BOOK_PIPELINE_MODULES || 'serpapi' }}"
+          LOG_LEVEL="${{ github.event.inputs.log_level || vars.BOOK_PIPELINE_LOG_LEVEL || 'INFO' }}"
+          python pipeline.py --modules $MODULES --log-level "$LOG_LEVEL" --report-dir data/runs
+
+      - name: Upload run reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-pipeline-run-reports
+          path: data/runs/
+          if-no-files-found: warn

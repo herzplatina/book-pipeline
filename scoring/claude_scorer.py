@@ -14,7 +14,7 @@ from typing import Literal
 
 import anthropic
 
-from config.settings import ANTHROPIC_API_KEY
+from config.settings import require_env
 from scoring.prompts import ARCHETYPE_HINTS, SYSTEM_PROMPT, build_user_message
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ _scorer: ClaudeScorer | None = None
 def _get_scorer() -> ClaudeScorer:
     global _scorer
     if _scorer is None:
-        _scorer = ClaudeScorer(ANTHROPIC_API_KEY)
+        _scorer = ClaudeScorer(require_env("ANTHROPIC_API_KEY"))
     return _scorer
 
 
