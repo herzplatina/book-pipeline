@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 _MODEL = "claude-haiku-4-5-20251001"
 _MAX_TOKENS = 300
+_JSON_PREFILL = "{"
 
 # EDD §4.2 disposition labels
 Disposition = Literal["auto", "review", "discard"]
@@ -38,6 +39,19 @@ def get_disposition(score: int, archetype_match: bool) -> Disposition:
     if score >= 8 and archetype_match:
         return "auto"
     return "review"
+
+
+def _parse_json_object(text: str) -> dict:
+    """Parse a JSON object, tolerating common markdown/code-fence wrappers."""
+    stripped = text.strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start == -1 or end == -1 or end < start:
+            raise
+        return json.loads(stripped[start : end + 1])
 
 
 class ClaudeScorer:
@@ -60,9 +74,15 @@ class ClaudeScorer:
                 model=_MODEL,
                 max_tokens=_MAX_TOKENS,
                 system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_msg}],
+                messages=[
+                    {"role": "user", "content": user_msg},
+                    {"role": "assistant", "content": _JSON_PREFILL},
+                ],
             )
-            return json.loads(response.content[0].text)
+            response_text = response.content[0].text
+            if not response_text.lstrip().startswith(_JSON_PREFILL):
+                response_text = _JSON_PREFILL + response_text
+            return _parse_json_object(response_text)
         except (json.JSONDecodeError, anthropic.APIError) as exc:
             logger.warning("Scoring failed: %s", exc)
             return None

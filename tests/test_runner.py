@@ -75,3 +75,37 @@ def test_run_handles_empty_discover(mock_logging, caplog):
         run(lambda: [])
 
     assert "Found 0 qualified leads (score >= 7) from 0 raw" in caplog.text
+
+
+@patch("modules.runner.logging")
+def test_run_can_log_all_scores(mock_logging, caplog):
+    from modules.runner import run
+
+    leads = [
+        {
+            **_make_lead(5, url="https://example.com/low"),
+            "_disposition": "discard",
+            "_archetype_match": False,
+            "Story Summary": "Too generic.",
+            "Turning Point": None,
+        },
+        {
+            **_make_lead(8, url="https://example.com/high"),
+            "_disposition": "auto",
+            "_archetype_match": True,
+            "Story Summary": "Specific transformation.",
+            "Turning Point": "A customer asked for more.",
+        },
+    ]
+
+    with (
+        caplog.at_level(logging.INFO, logger="modules.runner"),
+        patch("scoring.claude_scorer.score", side_effect=lambda lead: lead),
+    ):
+        run(lambda: leads, show_all_scores=True)
+
+    assert "All scored leads:" in caplog.text
+    assert "https://example.com/low" in caplog.text
+    assert "https://example.com/high" in caplog.text
+    assert "summary: Too generic." in caplog.text
+    assert "turning_point: A customer asked for more." in caplog.text

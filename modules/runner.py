@@ -39,8 +39,9 @@ def run(
     id_width: int = 30,
     detail_width: int = 12,
     url_width: int = 60,
+    show_all_scores: bool = False,
 ) -> None:
-    """Discover → score → print qualified leads (score >= 7)."""
+    """Discover → score → log qualified leads, optionally all scored leads."""
     from scoring import claude_scorer
 
     logging.basicConfig(
@@ -52,16 +53,24 @@ def run(
     logger.info(
         "Found %d qualified leads (score >= 7) from %d raw", len(qualified), len(raw)
     )
-    for lead in qualified:
+    leads_to_show = scored if show_all_scores else qualified
+    if show_all_scores:
+        logger.info("All scored leads:")
+    for lead in leads_to_show:
         logger.info(
-            "  %2s | %-*s | %-*s | %s",
+            "  %2s | %-8s | match=%-5s | %-*s | %-*s | %s",
             lead.get("Claude Score", "?"),
+            lead.get("_disposition", "?"),
+            lead.get("_archetype_match", "?"),
             id_width,
             lead.get(id_field, ""),
             detail_width,
             lead.get(detail_field, ""),
             lead["Source URL"][:url_width],
         )
+        if show_all_scores:
+            logger.info("       summary: %s", lead.get("Story Summary") or "")
+            logger.info("       turning_point: %s", lead.get("Turning Point") or "")
 
 
 if __name__ == "__main__":
@@ -71,6 +80,11 @@ if __name__ == "__main__":
         "--full",
         action="store_true",
         help="Run m3_serpapi with the full 288-call matrix instead of the default reduced matrix",
+    )
+    parser.add_argument(
+        "--show-all-scores",
+        action="store_true",
+        help="Log every scored lead, not only leads scoring >= 7.",
     )
     args = parser.parse_args()
 
@@ -87,4 +101,4 @@ if __name__ == "__main__":
     else:
         discover_fn = mod.discover
 
-    run(discover_fn, **cfg)
+    run(discover_fn, show_all_scores=args.show_all_scores, **cfg)

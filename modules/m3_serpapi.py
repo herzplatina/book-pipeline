@@ -4,6 +4,7 @@ discover() returns raw leads with ``_content`` set to the full article text.
 Scoring is handled by the shared ``scoring.claude_scorer`` module (Session 3).
 """
 
+import argparse
 import itertools
 import logging
 import time
@@ -89,12 +90,13 @@ def _build_lead(
     }
 
 
-def discover(reduced: bool | None = None) -> list[dict]:
+def discover(reduced: bool | None = None, max_cells: int | None = None) -> list[dict]:
     """Run the SerpApi city/date/query matrix and return raw leads.
 
     Args:
         reduced: True = 90-call free-tier matrix; False = 288-call full matrix.
                  Defaults to the module-level REDUCED_MATRIX flag.
+        max_cells: Optional cap on matrix cells for live smoke tests.
 
     Returns:
         All unique leads with ``_content`` set. Scoring and threshold filtering
@@ -105,6 +107,8 @@ def discover(reduced: bool | None = None) -> list[dict]:
         REDUCED_MATRIX = reduced
 
     matrix = _build_matrix()
+    if max_cells is not None:
+        matrix = matrix[:max_cells]
     logger.info("SerpApi matrix: %d cells (reduced=%s)", len(matrix), REDUCED_MATRIX)
 
     seen_urls: set[str] = set()
@@ -155,4 +159,22 @@ def discover(reduced: bool | None = None) -> list[dict]:
 if __name__ == "__main__":
     from modules.runner import run
 
-    run(lambda: discover(reduced=True), detail_field="City", detail_width=15)
+    parser = argparse.ArgumentParser(description="Run SerpApi discovery and scoring.")
+    parser.add_argument(
+        "--limit-cells",
+        type=int,
+        help="Limit SerpApi matrix cells for smoke tests.",
+    )
+    parser.add_argument(
+        "--show-all-scores",
+        action="store_true",
+        help="Log every scored lead, not only leads scoring >= 7.",
+    )
+    args = parser.parse_args()
+
+    run(
+        lambda: discover(reduced=True, max_cells=args.limit_cells),
+        detail_field="City",
+        detail_width=15,
+        show_all_scores=args.show_all_scores,
+    )

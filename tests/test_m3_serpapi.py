@@ -159,3 +159,17 @@ def test_discover_sleeps_between_calls(mock_serp, mock_fetch, mock_sleep):
 
     # One sleep per matrix cell (5 cities × 6 windows × 3 queries = 90)
     assert mock_sleep.call_count == 90
+
+
+@patch("modules.m3_serpapi.time.sleep")
+@patch("modules.m3_serpapi._fetch_article")
+@patch("modules.m3_serpapi._serpapi_search")
+def test_discover_limits_matrix_cells(mock_serp, mock_fetch, mock_sleep):
+    m3.REDUCED_MATRIX = True
+    mock_serp.return_value = []
+    mock_fetch.return_value = ("", [])
+
+    m3.discover(reduced=True, max_cells=10)
+
+    assert mock_serp.call_count == 10
+    assert mock_sleep.call_count == 10

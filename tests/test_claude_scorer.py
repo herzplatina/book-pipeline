@@ -7,7 +7,7 @@ import pytest
 
 from scoring.prompts import ARCHETYPE_HINTS, build_user_message
 from scoring import claude_scorer
-from scoring.claude_scorer import ClaudeScorer, get_disposition
+from scoring.claude_scorer import ClaudeScorer, _parse_json_object, get_disposition
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +101,13 @@ def test_score_text_returns_parsed_json():
     assert result["archetype_match"] is True
 
 
+def test_parse_json_object_tolerates_markdown_wrapper():
+    wrapped = '```json\n{"score": 8, "name": "Jane Smith"}\n```'
+    result = _parse_json_object(wrapped)
+    assert result["score"] == 8
+    assert result["name"] == "Jane Smith"
+
+
 def test_score_text_empty_returns_none():
     scorer = ClaudeScorer.__new__(ClaudeScorer)
     scorer._client = MagicMock()
@@ -124,6 +131,36 @@ def test_score_text_passes_archetype_hint():
     call_kwargs = scorer._client.messages.create.call_args.kwargs
     user_content = call_kwargs["messages"][0]["content"]
     assert "Archetype hint: bluecollar hint" in user_content
+
+
+def test_score_text_prefills_assistant_json_object():
+    scorer = _mock_scorer(_sample_scoring())
+    scorer.score_text("text")
+    call_kwargs = scorer._client.messages.create.call_args.kwargs
+    assert call_kwargs["messages"][1] == {"role": "assistant", "content": "{"}
+
+
+def test_score_text_readds_prefill_before_parsing():
+    scorer = ClaudeScorer.__new__(ClaudeScorer)
+    fake_client = MagicMock()
+    fake_response = MagicMock()
+    fake_response.content = [
+        MagicMock(
+            text=(
+                '"score": 8, "name": "Jane Smith", "archetype": "bluecollar", '
+                '"archetype_match": true, "turning_point": "She started.", '
+                '"summary": "Jane rebuilt her career.", '
+                '"contact_clue": null}'
+            )
+        )
+    ]
+    fake_client.messages.create.return_value = fake_response
+    scorer._client = fake_client
+
+    result = scorer.score_text("text")
+
+    assert result["score"] == 8
+    assert result["contact_clue"] is None
 
 
 def test_score_text_uses_haiku_model():

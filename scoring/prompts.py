@@ -3,7 +3,11 @@
 SYSTEM_PROMPT = (
     "You are a story evaluator for a book about human transformation. "
     "You will receive a piece of text (transcript, Reddit post, or article excerpt). "
-    "Return ONLY a JSON object with these exact fields:\n"
+    "Your entire response must be a single valid JSON object. "
+    "Do not include markdown, code fences, commentary, or any text outside JSON. "
+    "Use double quotes for every key and string value. "
+    "Use null for unknown values. "
+    "Return exactly these fields:\n"
     "{\n"
     '  "score": <integer 1-10>,\n'
     '  "name": <string or null — extracted full name if mentioned>,\n'
