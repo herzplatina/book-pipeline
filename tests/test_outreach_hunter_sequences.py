@@ -102,9 +102,7 @@ def test_dispatch_hunter_sequence_handles_nested_data_response(mock_post, monkey
 
 
 @patch("outreach.hunter_sequences.requests.post")
-def test_dispatch_hunter_skipped_recipient_falls_back_to_review(
-    mock_post, monkeypatch
-):
+def test_dispatch_hunter_skipped_recipient_falls_back_to_review(mock_post, monkeypatch):
     monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
     mock_post.return_value.json.return_value = {
         "recipients_added": [],
@@ -144,6 +142,34 @@ def test_dispatch_review_queue_calls_airtable(monkeypatch):
     queued = mock_at.add_to_manual_queue.call_args[0][0]
     assert queued["Source URL"] == lead["Source URL"]
     assert queued["Status"] == "Pending"
+
+
+def test_dispatch_review_queue_includes_reddit_fields(monkeypatch):
+    monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
+    mock_at = MagicMock()
+
+    lead = _lead(
+        Source="reddit",
+        _disposition="review",
+        **{"Reddit Username": "u/johndoe", "Subreddit": "UberDrivers"},
+    )
+    hs.dispatch(lead, airtable_client=mock_at)
+
+    queued = mock_at.add_to_manual_queue.call_args[0][0]
+    assert queued["Reddit Username"] == "u/johndoe"
+    assert queued["Subreddit"] == "UberDrivers"
+
+
+def test_dispatch_review_queue_omits_reddit_fields_for_non_reddit_leads(monkeypatch):
+    monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
+    mock_at = MagicMock()
+
+    lead = _lead(_disposition="review")  # Source="youtube", no Reddit fields
+    hs.dispatch(lead, airtable_client=mock_at)
+
+    queued = mock_at.add_to_manual_queue.call_args[0][0]
+    assert "Reddit Username" not in queued
+    assert "Subreddit" not in queued
 
 
 def test_dispatch_review_queue_without_airtable_does_not_raise():

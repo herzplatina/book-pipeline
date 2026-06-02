@@ -112,9 +112,7 @@ class ClaudeScorer:
         lead["Claude Score"] = score
         lead["Story Summary"] = scoring.get("summary")
         lead["Turning Point"] = scoring.get("turning_point")
-        lead["_contact_clue"] = scoring.get("contact_clue") or lead.get(
-            "_contact_clue"
-        )
+        lead["_contact_clue"] = scoring.get("contact_clue") or lead.get("_contact_clue")
         lead["_archetype_match"] = archetype_match
         lead["_disposition"] = get_disposition(score, archetype_match)
 

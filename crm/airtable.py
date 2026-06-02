@@ -180,9 +180,7 @@ def _smoke_test_contact(run_id: str) -> dict:
         "City": "Detroit",
         "Date Window": "airtable_smoke",
         "Claude Score": 8,
-        "Story Summary": (
-            "Synthetic Airtable smoke test lead; not a real prospect."
-        ),
+        "Story Summary": ("Synthetic Airtable smoke test lead; not a real prospect."),
         "Turning Point": "Synthetic test record created to validate Airtable writes.",
         "Email": "smoke-test@example.com",
         "Email Confidence": 100,

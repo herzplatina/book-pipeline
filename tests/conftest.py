@@ -4,9 +4,6 @@ import os
 
 _REQUIRED_STUBS = {
     "YOUTUBE_API_KEY": "stub",
-    "REDDIT_CLIENT_ID": "stub",
-    "REDDIT_CLIENT_SECRET": "stub",
-    "REDDIT_USER_AGENT": "stub",
     "SERPAPI_KEY": "stub",
     "LISTENNOTES_KEY": "stub",
     "APOLLO_KEY": "stub",

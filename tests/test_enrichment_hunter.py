@@ -211,3 +211,85 @@ def test_enrich_returns_lead_unchanged_on_complete_failure(mock_finder, mock_sea
     result = h.enrich(lead)
     assert result is lead
     assert "Email" not in lead
+
+
+# ---------------------------------------------------------------------------
+# Reddit DM fallback
+# ---------------------------------------------------------------------------
+
+
+@patch("enrichment.hunter._hunter_domain_search")
+@patch("enrichment.hunter._hunter_email_finder")
+def test_enrich_skips_hunter_for_platform_source_domain(mock_finder, mock_search):
+    """reddit.com Source URL must never be sent to Hunter."""
+    lead = _base_lead(
+        Source="reddit",
+        **{"Source URL": "https://www.reddit.com/r/UberDrivers/comments/abc/"},
+        _contact_clue=None,
+    )
+    h.enrich(lead)
+    mock_finder.assert_not_called()
+    mock_search.assert_not_called()
+
+
+@patch("enrichment.hunter._hunter_domain_search")
+@patch("enrichment.hunter._hunter_email_finder")
+def test_enrich_skips_hunter_for_platform_clue_domain(mock_finder, mock_search):
+    """A reddit.com URL in _contact_clue must also never be sent to Hunter."""
+    lead = _base_lead(
+        Source="reddit",
+        **{"Source URL": "https://www.reddit.com/r/UberDrivers/comments/abc/"},
+        **{"Reddit Username": "u/johndoe"},
+        _contact_clue="https://www.reddit.com/r/other_post/",
+    )
+    h.enrich(lead)
+    mock_finder.assert_not_called()
+    mock_search.assert_not_called()
+    assert lead["Contact Method"] == "reddit_dm"
+
+
+@patch("enrichment.hunter._hunter_domain_search")
+@patch("enrichment.hunter._hunter_email_finder")
+def test_enrich_sets_reddit_dm_when_no_email_found(mock_finder, mock_search):
+    mock_finder.return_value = None
+    mock_search.return_value = None
+    lead = _base_lead(
+        Source="reddit",
+        **{"Source URL": "https://www.reddit.com/r/UberDrivers/comments/abc/"},
+        **{"Reddit Username": "u/johndoe"},
+        _contact_clue=None,
+    )
+    h.enrich(lead)
+    assert lead["Contact Method"] == "reddit_dm"
+    assert lead["Contact Value"] == "https://www.reddit.com/user/johndoe"
+    assert "Email" not in lead
+
+
+@patch("enrichment.hunter._hunter_domain_search")
+@patch("enrichment.hunter._hunter_email_finder")
+def test_enrich_email_takes_priority_over_reddit_dm(mock_finder, mock_search):
+    mock_finder.return_value = ("jane@example.com", 85)
+    lead = _base_lead(
+        Source="reddit",
+        **{"Source URL": "https://www.reddit.com/r/UberDrivers/comments/abc/"},
+        **{"Reddit Username": "u/johndoe"},
+        _contact_clue="https://example.com",
+    )
+    h.enrich(lead)
+    assert lead["Contact Method"] == "email"
+    assert lead["Email"] == "jane@example.com"
+
+
+@patch("enrichment.hunter._hunter_domain_search")
+@patch("enrichment.hunter._hunter_email_finder")
+def test_enrich_reddit_dm_skipped_for_deleted_author(mock_finder, mock_search):
+    mock_finder.return_value = None
+    mock_search.return_value = None
+    lead = _base_lead(
+        Source="reddit",
+        **{"Source URL": "https://www.reddit.com/r/UberDrivers/comments/abc/"},
+        **{"Reddit Username": "[deleted]"},
+        _contact_clue=None,
+    )
+    h.enrich(lead)
+    assert "Contact Method" not in lead

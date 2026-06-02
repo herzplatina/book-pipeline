@@ -208,6 +208,43 @@ def test_run_upserts_qualifying_leads_to_airtable(
 @patch("pipeline.dispatch")
 @patch("pipeline.enrich")
 @patch("pipeline.score")
+@patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["youtube"], "discover")
+def test_run_review_queue_leads_skip_contacts_upsert(
+    mock_yt,
+    mock_rd,
+    mock_sp,
+    mock_np,
+    mock_ap,
+    mock_score,
+    mock_enrich,
+    mock_dispatch,
+    mock_at,
+):
+    """review_queue leads must never be written to the Contacts table."""
+    mock_yt.return_value = [_raw_lead()]
+    lead = _scored_lead(score=8)
+    mock_score.return_value = lead
+    mock_dispatch.side_effect = lambda lead, **kw: (
+        lead.__setitem__("_outreach_decision", "review_queue") or lead
+    )
+    mock_upsert = MagicMock()
+    mock_at.return_value.upsert = mock_upsert
+
+    result = pipeline.run()
+
+    mock_upsert.assert_not_called()
+    assert result["review_queue"] == 1
+    assert result["dispatched"] == 0
+
+
+@patch("pipeline.get_client")
+@patch("pipeline.dispatch")
+@patch("pipeline.enrich")
+@patch("pipeline.score")
 @patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
@@ -233,7 +270,9 @@ def test_run_discovery_error_continues(
 @patch("pipeline.enrich")
 @patch("pipeline.score")
 @patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["listennotes"], "discover", side_effect=Exception("API down"))
+@patch.object(
+    pipeline.MODULES["listennotes"], "discover", side_effect=Exception("API down")
+)
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover", return_value=[])
@@ -291,7 +330,7 @@ def test_run_checkpoints_qualified_youtube_channel_url(
     mock_yt.return_value = [high, low]
     mock_score.side_effect = [high_scored, low_scored]
     mock_dispatch.side_effect = lambda lead, **kw: (
-        lead.__setitem__("_outreach_decision", "skip") or lead
+        lead.__setitem__("_outreach_decision", "hunter_sequence") or lead
     )
     mock_at.return_value.upsert = MagicMock()
 

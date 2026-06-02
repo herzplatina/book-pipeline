@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 _HUNTER_BASE = "https://api.hunter.io/v2"
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
 
+# Never Hunter-search these domains — they return platform employee emails,
+# not the post author's contact. Fall through to source-specific fallbacks instead.
+_PLATFORM_DOMAINS = {"reddit.com", "youtube.com", "twitter.com", "instagram.com"}
+
 
 def _extract_email_from_clue(clue: str) -> str | None:
     match = _EMAIL_RE.search(clue or "")
@@ -37,6 +41,13 @@ def _domain_from_url(url: str) -> str | None:
     except ValueError:
         pass
     return None
+
+
+def _set_email(lead: dict, email: str, confidence: int) -> None:
+    lead["Email"] = email
+    lead["Email Confidence"] = confidence
+    lead["Contact Method"] = "email"
+    lead["Contact Value"] = email
 
 
 def _hunter_email_finder(
@@ -106,39 +117,39 @@ def enrich(lead: dict) -> dict:
 
     direct_email = _extract_email_from_clue(clue)
     if direct_email:
-        lead["Email"] = direct_email
-        lead["Email Confidence"] = 100
-        lead["Contact Method"] = "email"
-        lead["Contact Value"] = direct_email
+        _set_email(lead, direct_email, 100)
         logger.debug("Direct email from clue: %s", direct_email)
         return lead
 
     clue_domain = _domain_from_url(clue) if clue else None
+    if clue_domain in _PLATFORM_DOMAINS:
+        clue_domain = None
     source_domain = _domain_from_url(lead.get("Source URL") or "")
+    if source_domain in _PLATFORM_DOMAINS:
+        source_domain = None
     domain = clue_domain or source_domain
 
-    if not domain:
-        logger.debug("No domain found for %s", lead.get("Source URL", ""))
-        return lead
+    if domain:
+        if first and last:
+            result = _hunter_email_finder(domain, first, last)
+            if result:
+                _set_email(lead, *result)
+                logger.debug("Hunter email-finder → %s (%d%%)", *result)
+                return lead
 
-    if first and last:
-        result = _hunter_email_finder(domain, first, last)
+        result = _hunter_domain_search(domain)
         if result:
-            email, confidence = result
-            lead["Email"] = email
-            lead["Email Confidence"] = confidence
-            lead["Contact Method"] = "email"
-            lead["Contact Value"] = email
-            logger.debug("Hunter email-finder → %s (%d%%)", email, confidence)
+            _set_email(lead, *result)
+            logger.debug("Hunter domain-search → %s (%d%%)", *result)
             return lead
+    else:
+        logger.debug("No usable domain for %s", lead.get("Source URL", ""))
 
-    result = _hunter_domain_search(domain)
-    if result:
-        email, confidence = result
-        lead["Email"] = email
-        lead["Email Confidence"] = confidence
-        lead["Contact Method"] = "email"
-        lead["Contact Value"] = email
-        logger.debug("Hunter domain-search → %s (%d%%)", email, confidence)
+    if lead.get("Source") == "reddit":
+        username = (lead.get("Reddit Username") or "").removeprefix("u/")
+        if username and username != "[deleted]":
+            lead["Contact Method"] = "reddit_dm"
+            lead["Contact Value"] = f"https://www.reddit.com/user/{username}"
+            logger.debug("Reddit DM fallback → /user/%s", username)
 
     return lead

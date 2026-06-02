@@ -137,24 +137,24 @@ def dispatch(lead: dict, airtable_client: "AirtableClient | None" = None) -> dic
             _add_to_hunter_sequence(lead)
             logger.info("Added to Hunter Sequence: %s", lead.get("Email"))
         except (HunterSequenceError, requests.RequestException) as exc:
-            logger.error(
-                "Hunter Sequence dispatch failed: %s", type(exc).__name__
-            )
+            logger.error("Hunter Sequence dispatch failed: %s", type(exc).__name__)
             lead["_outreach_decision"] = "review_queue"
 
     elif decision == "review_queue" and airtable_client is not None:
         try:
-            airtable_client.add_to_manual_queue(
-                {
-                    "Source URL": lead.get("Source URL", ""),
-                    "Archetype": lead.get("Archetype", ""),
-                    "Name": lead.get("Name", ""),
-                    "Contact Method": lead.get("Contact Method", ""),
-                    "Contact Value": lead.get("Contact Value", ""),
-                    "Status": "Pending",
-                    "Notes": lead.get("Story Summary", ""),
-                }
-            )
+            queue_fields: dict = {
+                "Source URL": lead.get("Source URL", ""),
+                "Archetype": lead.get("Archetype", ""),
+                "Name": lead.get("Name", ""),
+                "Contact Method": lead.get("Contact Method", ""),
+                "Contact Value": lead.get("Contact Value", ""),
+                "Status": "Pending",
+                "Notes": lead.get("Story Summary", ""),
+            }
+            for _field in ("Reddit Username", "Subreddit"):
+                if lead.get(_field):
+                    queue_fields[_field] = lead[_field]
+            airtable_client.add_to_manual_queue(queue_fields)
             logger.info("Queued for review: %s", lead.get("Source URL"))
         except Exception:
             logger.exception(

@@ -19,7 +19,7 @@ from config.settings import CLAUDE_SCORE_THRESHOLD
 from crm.airtable import get_client
 from enrichment.hunter import enrich
 from modules import m1_youtube, m2_reddit, m3_serpapi, m4_nonprofits, m5_apollo
-from outreach.hunter_sequences import dispatch
+from outreach.hunter_sequences import dispatch, route
 from scoring.claude_scorer import score
 
 logger = logging.getLogger(__name__)
@@ -136,12 +136,16 @@ def run(
     module_names: list[str] | None = None,
     *,
     report_dir: str | Path | None = None,
+    no_dispatch: bool = False,
 ) -> dict:
     """Run the pipeline end-to-end. Returns a summary dict.
 
     Args:
         module_names: List of module keys from MODULES to run.
                       Defaults to DEFAULT_MODULES when None.
+        no_dispatch:  If True, skip outreach dispatch but still enrich.
+                      Contacts upsert still only runs for hunter_sequence leads.
+                      Useful for dry-run testing.
 
     Returns:
         Summary with keys: discovered, qualifying, dispatched,
@@ -207,28 +211,48 @@ def run(
             )
             _record_error(errors, stage="enrich", exc=exc, lead=lead)
 
-    # --- Stage 5: Dispatch + CRM upsert ---
-    # _outreach_decision values from dispatch(): "hunter_sequence", "review_queue", "skip"
+    # --- Stage 5: Dispatch + CRM routing ---
+    # Routing rules:
+    #   hunter_sequence → dispatch to Hunter Sequence + upsert to Contacts table
+    #   review_queue    → add to Manual DM Queue only; never upsert to Contacts
+    #   skip            → discard; no Airtable writes
     _decision_key = {"hunter_sequence": "dispatched", "skip": "skipped"}
     counts = {"dispatched": 0, "review_queue": 0, "skipped": 0}
     for lead in qualifying:
-        try:
-            dispatch(lead, airtable_client=airtable)
-            raw = lead.get("_outreach_decision", "skip")
-            key = _decision_key.get(raw, raw)
-            if key in counts:
-                counts[key] += 1
-        except Exception as exc:
-            logger.exception("Dispatch failed for url=%s", lead.get("Source URL", "?"))
-            _record_error(errors, stage="dispatch", exc=exc, lead=lead)
+        # Determine routing — dispatch() sets _outreach_decision as a side-effect,
+        # so call route() first when dispatch is suppressed (--no-dispatch testing).
+        if not no_dispatch:
+            try:
+                dispatch(lead, airtable_client=airtable)
+            except Exception as exc:
+                logger.exception(
+                    "Dispatch failed for url=%s", lead.get("Source URL", "?")
+                )
+                _record_error(errors, stage="dispatch", exc=exc, lead=lead)
+        else:
+            lead["_outreach_decision"] = route(lead)
 
-        try:
-            airtable.upsert(lead)
-        except Exception as exc:
-            logger.exception(
-                "Airtable upsert failed for url=%s", lead.get("Source URL", "?")
+        decision = lead.get("_outreach_decision", "skip")
+        raw_key = _decision_key.get(decision, decision)
+        if raw_key in counts:
+            counts[raw_key] += 1
+
+        # Only automatable leads go into the Contacts table.
+        # review_queue leads are already written to the Manual DM Queue by dispatch().
+        if decision == "hunter_sequence":
+            try:
+                airtable.upsert(lead)
+            except Exception as exc:
+                logger.exception(
+                    "Airtable upsert failed for url=%s", lead.get("Source URL", "?")
+                )
+                _record_error(errors, stage="airtable_upsert", exc=exc, lead=lead)
+        else:
+            logger.info(
+                "Contacts upsert skipped (decision=%s) for url=%s",
+                decision,
+                lead.get("Source URL", ""),
             )
-            _record_error(errors, stage="airtable_upsert", exc=exc, lead=lead)
 
     summary = {
         "discovered": len(all_raw),
@@ -273,6 +297,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Do not write run report artifacts.",
     )
+    parser.add_argument(
+        "--no-dispatch",
+        action="store_true",
+        help="Skip outreach dispatch; still enriches and upserts to Airtable.",
+    )
     return parser.parse_args(argv)
 
 
@@ -283,5 +312,9 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         stream=sys.stdout,
     )
-    result = run(args.modules, report_dir=None if args.no_report else args.report_dir)
+    result = run(
+        args.modules,
+        report_dir=None if args.no_report else args.report_dir,
+        no_dispatch=args.no_dispatch,
+    )
     print_summary(result)

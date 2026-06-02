@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _REGISTRY: dict[str, dict] = {
     "m1_youtube": {"detail_field": "Archetype"},
     "m2_reddit": {
-        "id_field": "_reddit_author",
+        "id_field": "Reddit Username",
         "id_width": 20,
         "detail_field": "Archetype",
     },

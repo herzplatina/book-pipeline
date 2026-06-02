@@ -57,6 +57,7 @@ def _lead_email(data: dict) -> str:
     recipient = data.get("recipient") or {}
     return str(data.get("email") or lead.get("email") or recipient.get("email") or "")
 
+
 def _reply_sentiment(data: dict, event_type: str) -> str:
     reply = data.get("reply") or {}
     sentiment = str(

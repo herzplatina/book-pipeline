@@ -75,9 +75,7 @@ def test_build_lead_content_includes_title_description_transcript():
 
 def test_build_lead_extracts_contact_hints_from_description_and_transcript_only():
     item = _make_item(title="Title with Jane Ignored")
-    item["snippet"]["description"] = (
-        "Meet Jane Smith. Contact her at jane@example.com."
-    )
+    item["snippet"]["description"] = "Meet Jane Smith. Contact her at jane@example.com."
     transcript = "Today I am Maria Garcia and you can reach me at maria@example.org."
 
     lead = m1._build_lead(item, transcript, "health")

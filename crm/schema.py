@@ -51,6 +51,8 @@ CONTACTS_FIELDS: dict[str, type] = {
     "Interview Date": str,  # ISO date string
     "Consent Received": bool,
     "Created At": str,  # ISO datetime string
+    "Reddit Username": str,
+    "Subreddit": str,
 }
 
 # Fields required when creating a new record
