@@ -116,7 +116,16 @@ Five primary archetypes define the book's scope. Each archetype has sub-types th
 
 # **3\. Discovery Sources**
 
-The following table maps every discovery source to the story types it surfaces, the archetypes it covers, the probability of finding a contact email via Hunter.io, the best contact method, and the outreach channel.
+Current execution scope is limited to four active discovery sources:
+
+- SerpApi local news
+- YouTube
+- Reddit
+- ListenNotes
+
+Apify, Apollo, nonprofit/archive scraping, StoryCorps, The Moth, LinkedIn, Instagram, and other sources remain documented as future candidates, but they are paused for now and should not be used in the default pipeline until explicitly reactivated.
+
+The following table maps discovery sources to the story types they surface, the archetypes they cover, the probability of finding a contact email via Hunter.io, the best contact method, and the outreach channel.
 
 | Source                        | Story types                                  | Archetypes | Hunter hit rate | Contact method                                         | Outreach channel        |
 | :---------------------------- | :------------------------------------------- | :--------- | :-------------- | :----------------------------------------------------- | :---------------------- |
@@ -125,14 +134,14 @@ The following table maps every discovery source to the story types it surfaces, 
 | Reddit PRAW (live)            | Driver hustle, criminal reform, recovery     | 2, 3, 4    | \<2%            | Reddit DM via PRAW only                                | Reddit DM (manual tone) |
 | Reddit Arctic Shift (archive) | Covid layoff, addiction recovery             | 3, 5       | \<2%            | Reddit DM via PRAW                                     | Reddit DM               |
 | SerpApi local news            | Covid blue-collar comeback                   | 5          | 35–75%          | Hunter (if business owner) or contact journalist first | Hunter Sequence         |
-| Apify — nonprofit pages       | Criminal reform, deradicalization            | 1, 2       | 15–25%          | Org comms director — warm intro only                   | Manual email            |
+| Apify — nonprofit pages       | PAUSED — revisit later                       | 1, 2       | 15–25%          | Org comms director — warm intro only                   | Manual email            |
 | StoryCorps archive            | Health, loss, survival, all archetypes       | All        | 10–20%          | StoryCorps facilitator or name+city LinkedIn search    | Platform or LinkedIn DM |
 | The Moth story archive        | Any first-person arc                         | All        | 40–55%          | Moth speaker bureau or personal site from bio          | Email or speaker bureau |
 | TEDx YouTube channel          | Deradicalization, health, comeback           | 1, 3       | 50–65%          | Hunter or TEDx speaker page link                       | Hunter Sequence         |
 | ListenNotes (podcast guests)  | All archetypes                               | All        | 50–60%          | Podcast show notes — guest's own links                 | Email or platform DM    |
 | Medium / Substack essays      | Recovery, immigrant, comeback                | 2, 3, 5    | 35–50%          | Platform message or author bio link                    | Platform DM             |
-| Nonprofit annual reports      | Criminal reform, all                         | 1, 2       | 10–20%          | Org comms director — same as nonprofit pages           | Manual email            |
-| Apollo.io profiles            | Blue-collar Covid pivot, immigrant           | 5          | 70–80%          | Apollo email built-in (check before Hunter)            | Hunter Sequence         |
+| Nonprofit annual reports      | PAUSED — revisit later                       | 1, 2       | 10–20%          | Org comms director — same as nonprofit pages           | Manual email            |
+| Apollo.io profiles            | PAUSED — revisit later                       | 5          | 70–80%          | Apollo email built-in (check before Hunter)            | Hunter Sequence         |
 | LinkedIn manual search        | Blue-collar, professional pivot              | 5          | 50–60%          | LinkedIn message directly — skip Hunter                | LinkedIn DM (manual)    |
 | In-person Uber/Lyft rides     | Entrepreneurial driver                       | 4          | N/A             | Physical card, Airtable manual entry                   | Follow-up email or call |
 | SCORE / Chamber spotlights    | Covid comeback, small business               | 5          | 40–60%          | Hunter (business domain) or contact page               | Hunter Sequence         |
@@ -153,11 +162,11 @@ The pipeline applies a waterfall enrichment strategy: each source type has a pri
 
 - Local news article: check article body for business URL → Hunter on business domain → contact the journalist for a warm intro
 
-- Nonprofit page: email org comms director → request facilitated introduction to individual
+- Nonprofit page: paused for now; when reactivated, email org comms director → request facilitated introduction to individual
 
 - Podcast show notes: use guest's own linked channels (website, Instagram, LinkedIn) before Hunter
 
-- Apollo / LinkedIn: Apollo email built-in → Hunter fallback → LinkedIn InMail
+- Apollo / LinkedIn: paused for now; when reactivated, Apollo email built-in → Hunter fallback → LinkedIn InMail
 
 ## **4.2 When not to use Hunter**
 
@@ -186,7 +195,7 @@ The following source types can be handled by Hunter Sequences with archetype-spe
 
 - TEDx speakers, podcast guests, The Moth performers (professional footprint)
 
-- Apollo/LinkedIn professional profiles
+- Apollo/LinkedIn professional profiles are paused for now
 
 - SCORE, Chamber of Commerce, university alumni spotlights
 
@@ -269,9 +278,9 @@ All candidates are tracked in Airtable with the following status progression. Au
 
 - Start Reddit PRAW monitoring for all relevant subreddits
 
-- Apify scrape of nonprofit speaker pages
+- Apify scrape of nonprofit speaker pages — paused; revisit later
 
-- Apollo.io export for professional pivot profiles
+- Apollo.io export for professional pivot profiles — paused; revisit later
 
 - All raw leads scored by Claude API, deduplicated, loaded into Airtable
 

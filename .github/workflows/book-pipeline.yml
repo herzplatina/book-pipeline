@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: "Space-separated modules to run, e.g. serpapi or 'youtube serpapi'"
+        description: "Space-separated modules to run, e.g. 'youtube reddit serpapi listennotes'"
         required: false
-        default: "serpapi"
+        default: "youtube reddit serpapi listennotes"
       log_level:
         description: "Pipeline log level"
         required: false
@@ -31,9 +31,7 @@ jobs:
       REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
       REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
       SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-      APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
       LISTENNOTES_KEY: ${{ secrets.LISTENNOTES_KEY }}
-      APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       HUNTER_KEY: ${{ secrets.HUNTER_KEY }}
       AIRTABLE_PAT: ${{ secrets.AIRTABLE_PAT }}
@@ -65,7 +63,7 @@ jobs:
       - name: Run pipeline
         run: |
           mkdir -p data/runs
-          MODULES="${{ github.event.inputs.modules || vars.BOOK_PIPELINE_MODULES || 'serpapi' }}"
+          MODULES="${{ github.event.inputs.modules || vars.BOOK_PIPELINE_MODULES || 'youtube reddit serpapi listennotes' }}"
           LOG_LEVEL="${{ github.event.inputs.log_level || vars.BOOK_PIPELINE_LOG_LEVEL || 'INFO' }}"
           python pipeline.py --modules $MODULES --log-level "$LOG_LEVEL" --report-dir data/runs
 

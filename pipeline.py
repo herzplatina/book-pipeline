@@ -4,8 +4,8 @@ Runs all discovery modules → scores with Claude → enriches via Hunter.io
 → dispatches via Hunter Sequences or human review queue → upserts to Airtable.
 
 Usage:
-    python pipeline.py                    # full run, all modules
-    python pipeline.py --modules youtube serpapi   # specific modules only
+    python pipeline.py                    # active default modules
+    python pipeline.py --modules youtube reddit serpapi listennotes
 """
 
 import argparse
@@ -29,9 +29,13 @@ MODULES: dict = {
     "youtube": m1_youtube,
     "reddit": m2_reddit,
     "serpapi": m3_serpapi,
-    "nonprofits": m4_nonprofits,
+    "listennotes": m4_nonprofits,
     "apollo": m5_apollo,
 }
+
+# Active lead sources for the current operating phase.
+# Apollo remains available through --modules for later/manual runs.
+DEFAULT_MODULES = ["youtube", "reddit", "serpapi", "listennotes"]
 
 
 def _record_error(
@@ -111,14 +115,14 @@ def run(
 
     Args:
         module_names: List of module keys from MODULES to run.
-                      Defaults to all modules when None.
+                      Defaults to DEFAULT_MODULES when None.
 
     Returns:
         Summary with keys: discovered, qualifying, dispatched,
         review_queue, skipped, errors.
     """
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    names = module_names or list(MODULES.keys())
+    names = module_names or DEFAULT_MODULES
     airtable = get_client()
     errors: list[dict] = []
 
@@ -212,7 +216,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         nargs="+",
         choices=list(MODULES.keys()),
         metavar="MODULE",
-        help="Modules to run (default: all). Choices: " + ", ".join(MODULES.keys()),
+        help=f"Modules to run (default: {' '.join(DEFAULT_MODULES)}).",
     )
     parser.add_argument(
         "--log-level",

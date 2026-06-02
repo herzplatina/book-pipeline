@@ -19,9 +19,7 @@ def require_env(key: str) -> str:
     return val
 
 
-# --- Optional integration values ---
 # Required credentials are intentionally loaded lazily via require_env().
-APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 
 # --- Scoring Thresholds ---

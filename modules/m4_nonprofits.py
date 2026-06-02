@@ -1,8 +1,11 @@
-"""Nonprofits & archives discovery module — Archetypes: criminal, extremist, health, bluecollar.
+"""ListenNotes discovery module — Archetypes: criminal, extremist, health, bluecollar.
 
-Two sub-sources:
-  1. Nonprofit story pages — scrape story/alumni/people pages listed in NONPROFIT_URLS.
-  2. ListenNotes API     — podcast episode search using LISTENNOTES_QUERIES.
+Active source:
+  1. ListenNotes API — podcast episode search using LISTENNOTES_QUERIES.
+
+Paused for later:
+  - Nonprofit story-page scraping / Apify-backed scraping. Helper functions remain
+    in this module, but discover() does not call them unless explicitly requested.
 
 discover() returns raw leads with _content set. Scoring is handled downstream.
 """
@@ -161,7 +164,7 @@ def _listennotes_search(query: str) -> list[dict]:
             leads.append(
                 {
                     "Archetype": archetype,
-                    "Source": "podcast",
+                    "Source": "listennotes",
                     "Source URL": url,
                     "Status": "New",
                     "_content": f"{title}\n\n{description}",
@@ -173,8 +176,8 @@ def _listennotes_search(query: str) -> list[dict]:
     return leads
 
 
-def discover() -> list[dict]:
-    """Scrape nonprofit story pages and search ListenNotes. Returns raw leads.
+def discover(*, include_nonprofits: bool = False) -> list[dict]:
+    """Search ListenNotes, optionally including paused nonprofit scraping.
 
     Returns:
         All unique leads with ``_content`` set. Scoring and threshold filtering
@@ -183,17 +186,17 @@ def discover() -> list[dict]:
     seen_urls: set[str] = set()
     leads: list[dict] = []
 
-    # Pass 1: nonprofit story pages
-    for url in NONPROFIT_URLS:
-        logger.info("Scraping nonprofit: %s", url)
-        for lead in _scrape_nonprofit(url):
-            src = lead["Source URL"]
-            if src not in seen_urls:
-                seen_urls.add(src)
-                leads.append(lead)
-        time.sleep(NONPROFIT_SLEEP_SECONDS)
+    if include_nonprofits:
+        # Paused source: keep available for explicit future reactivation.
+        for url in NONPROFIT_URLS:
+            logger.info("Scraping nonprofit: %s", url)
+            for lead in _scrape_nonprofit(url):
+                src = lead["Source URL"]
+                if src not in seen_urls:
+                    seen_urls.add(src)
+                    leads.append(lead)
+            time.sleep(NONPROFIT_SLEEP_SECONDS)
 
-    # Pass 2: ListenNotes podcast search
     for query in LISTENNOTES_QUERIES:
         logger.info("ListenNotes: %.50s...", query)
         for lead in _listennotes_search(query):
@@ -203,7 +206,7 @@ def discover() -> list[dict]:
                 leads.append(lead)
         time.sleep(NONPROFIT_SLEEP_SECONDS)
 
-    logger.info("Discovery complete: %d leads from nonprofits + podcasts", len(leads))
+    logger.info("Discovery complete: %d leads from ListenNotes", len(leads))
     return leads
 
 

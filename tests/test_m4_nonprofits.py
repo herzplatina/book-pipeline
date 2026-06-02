@@ -137,7 +137,7 @@ def test_listennotes_search_returns_leads(mock_get):
     mock_get.return_value = _mock_ln_response([_make_episode()])
     leads = m4._listennotes_search("Joe Dispenza healing story")
     assert len(leads) == 1
-    assert leads[0]["Source"] == "podcast"
+    assert leads[0]["Source"] == "listennotes"
     assert leads[0]["Archetype"] == "health"
 
 
@@ -168,21 +168,22 @@ def test_listennotes_search_http_error_returns_empty(mock_get):
 @patch("modules.m4_nonprofits._listennotes_search")
 @patch("modules.m4_nonprofits._scrape_nonprofit")
 def test_discover_returns_leads(mock_scrape, mock_ln, mock_sleep):
-    mock_scrape.return_value = [
+    mock_scrape.return_value = []
+    mock_ln.return_value = [
         {
-            "Archetype": "criminal",
-            "Source": "nonprofit",
-            "Source URL": "https://defyventures.org/stories/jane",
+            "Archetype": "health",
+            "Source": "listennotes",
+            "Source URL": "https://listennotes.com/e/jane",
             "Status": "New",
             "_content": "Story text.",
         }
     ]
-    mock_ln.return_value = []
 
     leads = m4.discover()
     assert len(leads) >= 1
-    assert leads[0]["Source"] == "nonprofit"
+    assert leads[0]["Source"] == "listennotes"
     assert "Claude Score" not in leads[0]
+    mock_scrape.assert_not_called()
 
 
 @patch("modules.m4_nonprofits.time.sleep")
@@ -199,7 +200,7 @@ def test_discover_deduplicates_urls(mock_scrape, mock_ln, mock_sleep):
     mock_scrape.return_value = [dup_lead]
     mock_ln.return_value = [dup_lead]
 
-    leads = m4.discover()
+    leads = m4.discover(include_nonprofits=True)
     urls = [lead["Source URL"] for lead in leads]
     assert urls.count("https://defyventures.org/stories/jane") == 1
 
@@ -207,11 +208,23 @@ def test_discover_deduplicates_urls(mock_scrape, mock_ln, mock_sleep):
 @patch("modules.m4_nonprofits.time.sleep")
 @patch("modules.m4_nonprofits._listennotes_search")
 @patch("modules.m4_nonprofits._scrape_nonprofit")
-def test_discover_scrapes_all_nonprofit_urls(mock_scrape, mock_ln, mock_sleep):
+def test_discover_skips_nonprofit_urls_by_default(mock_scrape, mock_ln, mock_sleep):
     mock_scrape.return_value = []
     mock_ln.return_value = []
 
     m4.discover()
+
+    mock_scrape.assert_not_called()
+
+
+@patch("modules.m4_nonprofits.time.sleep")
+@patch("modules.m4_nonprofits._listennotes_search")
+@patch("modules.m4_nonprofits._scrape_nonprofit")
+def test_discover_can_include_paused_nonprofit_urls(mock_scrape, mock_ln, mock_sleep):
+    mock_scrape.return_value = []
+    mock_ln.return_value = []
+
+    m4.discover(include_nonprofits=True)
 
     assert mock_scrape.call_count == len(NONPROFIT_URLS)
 

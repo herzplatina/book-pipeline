@@ -26,6 +26,7 @@ _REGISTRY: dict[str, dict] = {
         "detail_field": "Archetype",
     },
     "m3_serpapi": {"detail_field": "City", "detail_width": 15},
+    "listennotes": {"import_name": "m4_nonprofits", "detail_field": "Archetype"},
     "m4_nonprofits": {"detail_field": "Archetype"},
     "m5_apollo": {"detail_field": "Email", "detail_width": 35, "url_width": 50},
 }
@@ -89,10 +90,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cfg = dict(_REGISTRY[args.module])
-    mod = importlib.import_module(f"modules.{args.module}")
+    import_name = cfg.pop("import_name", args.module)
+    mod = importlib.import_module(f"modules.{import_name}")
 
     # serpapi defaults to reduced=True (free tier); --full overrides to reduced=False
-    if args.module == "m3_serpapi":
+    if import_name == "m3_serpapi":
         discover_fn = (
             (lambda: mod.discover(reduced=False))
             if args.full

@@ -38,17 +38,15 @@ def _scored_lead(url="https://example.com/1", score=8, disposition="auto"):
 @patch("pipeline.dispatch")
 @patch("pipeline.enrich")
 @patch("pipeline.score")
-@patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover")
-def test_run_calls_all_modules(
+def test_run_calls_default_active_modules(
     mock_yt,
     mock_rd,
     mock_sp,
     mock_np,
-    mock_ap,
     mock_score,
     mock_enrich,
     mock_dispatch,
@@ -66,9 +64,8 @@ def test_run_calls_all_modules(
 
     mock_yt.assert_called_once()
     mock_rd.assert_called_once()
-    mock_sp.assert_called_once()
     mock_np.assert_called_once()
-    mock_ap.assert_called_once()
+    mock_sp.assert_called_once()
 
 
 @patch("pipeline.get_client")
@@ -76,7 +73,7 @@ def test_run_calls_all_modules(
 @patch("pipeline.enrich")
 @patch("pipeline.score")
 @patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover")
@@ -110,7 +107,7 @@ def test_run_filters_below_threshold(
 @patch("pipeline.enrich")
 @patch("pipeline.score")
 @patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover")
@@ -175,7 +172,7 @@ def test_run_with_subset_of_modules(
 @patch("pipeline.enrich")
 @patch("pipeline.score")
 @patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover")
@@ -208,8 +205,7 @@ def test_run_upserts_qualifying_leads_to_airtable(
 @patch("pipeline.dispatch")
 @patch("pipeline.enrich")
 @patch("pipeline.score")
-@patch.object(pipeline.MODULES["apollo"], "discover", side_effect=Exception("API down"))
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover", return_value=[])
@@ -218,7 +214,6 @@ def test_run_discovery_error_continues(
     mock_rd,
     mock_sp,
     mock_np,
-    mock_ap,
     mock_score,
     mock_enrich,
     mock_dispatch,
@@ -235,8 +230,8 @@ def test_run_discovery_error_continues(
 @patch("pipeline.enrich")
 @patch("pipeline.score")
 @patch.object(pipeline.MODULES["apollo"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["nonprofits"], "discover", return_value=[])
-@patch.object(pipeline.MODULES["serpapi"], "discover", side_effect=Exception("API down"))
+@patch.object(pipeline.MODULES["listennotes"], "discover", side_effect=Exception("API down"))
+@patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
 @patch.object(pipeline.MODULES["youtube"], "discover", return_value=[])
 def test_run_writes_report_artifacts(
@@ -264,5 +259,5 @@ def test_run_writes_report_artifacts(
     payload = json.loads(summary_files[0].read_text(encoding="utf-8"))
     assert payload["summary"]["discovered"] == 0
     assert payload["errors"][0]["stage"] == "discover"
-    assert payload["errors"][0]["module"] == "serpapi"
+    assert payload["errors"][0]["module"] == "listennotes"
     assert "API down" in error_files[0].read_text(encoding="utf-8")
