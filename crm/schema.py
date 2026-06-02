@@ -39,7 +39,9 @@ CONTACTS_FIELDS: dict[str, type] = {
     "Contact Value": str,
     "Requires Handcraft": bool,
     "Status": str,  # one of STATUSES
-    "Instantly Lead ID": str,
+    "Hunter Lead ID": str,
+    "Hunter Sequence ID": str,
+    "Email Opened": bool,
     "Replied": bool,
     "Reply Sentiment": str,  # one of REPLY_SENTIMENTS
     "Pre-screen Notes": str,
@@ -78,7 +80,7 @@ def validate_lead(lead: dict) -> list[str]:
 
 
 def is_handcraft_required(lead: dict) -> bool:
-    """Returns True for contacts that must never be sent to Instantly."""
+    """Returns True for contacts that must never be sent to Hunter Sequences."""
     archetype = lead.get("Archetype", "")
     source = lead.get("Source", "")
     status = lead.get("Status", "")

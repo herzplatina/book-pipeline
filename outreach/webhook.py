@@ -1,13 +1,13 @@
-"""Flask webhook receiver for Instantly.ai reply notifications.
+"""Flask webhook receiver for Hunter Sequences notifications.
 
 Mount this app or register its blueprint in a WSGI server.
-Instantly must be configured to POST to: POST /webhook/instantly
+Hunter must be configured to POST to: POST /webhook/hunter
 
 Expected payload shape:
     {
-        "event_type": "reply_received",
-        "lead": {"id": "<Instantly Lead ID>", "email": "..."},
-        "reply": {"body": "...", "sentiment": "positive|neutral|unsubscribe|bounce"}
+        "type": "reply|open|bounce|unsubscribe|completed",
+        "email": "lead@example.com",
+        "reply_category": "positive|neutral|unsubscribe|bounce"
     }
 
 Authentication: every request must include the header
@@ -17,10 +17,9 @@ Authentication: every request must include the header
 import hmac
 import logging
 
-import requests
 from flask import Flask, jsonify, request
 
-from config.settings import NOTIFY_EMAIL, SLACK_WEBHOOK_URL, WEBHOOK_SECRET
+from config.settings import WEBHOOK_SECRET
 from crm.airtable import get_client
 from crm.schema import REPLY_SENTIMENTS
 
@@ -38,60 +37,84 @@ def _verify_secret(req) -> bool:
     return hmac.compare_digest(provided, WEBHOOK_SECRET)
 
 
-def _notify(lead_name: str, email: str, summary: str) -> None:
-    """Fire a Slack or email notification for a positive reply."""
-    msg = f"Positive reply from {lead_name} ({email}): {summary[:120]}"
-    if SLACK_WEBHOOK_URL:
-        try:
-            requests.post(SLACK_WEBHOOK_URL, json={"text": msg}, timeout=5)
-        except Exception:
-            logger.exception("Slack notify failed")
-    if NOTIFY_EMAIL:
-        # TODO: b/0 - implement email notification for positive replies
-        logger.debug("Email notification not yet implemented; target=%s", NOTIFY_EMAIL)
+def _event_type(data: dict) -> str:
+    raw = str(data.get("type") or data.get("event_type") or "").lower()
+    if raw in ("reply", "replied", "email_replied", "reply_received"):
+        return "reply"
+    if raw in ("open", "opened", "email_opened"):
+        return "open"
+    if raw in ("bounce", "bounced", "email_bounced"):
+        return "bounce"
+    if raw in ("unsubscribe", "unsubscribed", "email_unsubscribed"):
+        return "unsubscribe"
+    if raw in ("completed", "sequence_completed"):
+        return "completed"
+    return raw
 
 
-@app.route("/webhook/instantly", methods=["POST"])
-def instantly_reply():
-    """Handle an Instantly reply webhook and update Airtable."""
+def _lead_email(data: dict) -> str:
+    lead = data.get("lead") or {}
+    recipient = data.get("recipient") or {}
+    return str(data.get("email") or lead.get("email") or recipient.get("email") or "")
+
+def _reply_sentiment(data: dict, event_type: str) -> str:
+    reply = data.get("reply") or {}
+    sentiment = str(
+        data.get("reply_category") or data.get("sentiment") or reply.get("sentiment")
+    )
+    sentiment = sentiment.lower() if sentiment else "neutral"
+    if event_type == "bounce":
+        return "bounce"
+    if event_type == "unsubscribe":
+        return "unsubscribe"
+    return sentiment if sentiment in REPLY_SENTIMENTS else "neutral"
+
+
+@app.route("/webhook/hunter", methods=["POST"])
+def hunter_webhook():
+    """Handle a Hunter Sequences webhook and update Airtable."""
     if not _verify_secret(request):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
 
     data = request.get_json(silent=True) or {}
 
-    lead_id = (data.get("lead") or {}).get("id", "")
-    email = (data.get("lead") or {}).get("email", "")
-    reply = data.get("reply") or {}
-    sentiment = reply.get("sentiment", "neutral")
+    event_type = _event_type(data)
+    email = _lead_email(data)
+    sentiment = _reply_sentiment(data, event_type)
 
-    if sentiment not in REPLY_SENTIMENTS:
-        sentiment = "neutral"
-
-    if not lead_id:
-        logger.warning("Webhook received with no lead_id")
-        return jsonify({"ok": False, "error": "missing lead_id"}), 400
+    if not email:
+        logger.warning("Webhook received with no email")
+        return jsonify({"ok": False, "error": "missing email"}), 400
 
     try:
         client = get_client()
-        record = client.find_by_instantly_lead_id(lead_id)
+        record = client.find_by_email(email)
         if record:
-            client.update(
-                record["id"],
-                {
-                    "Status": "Responded",
-                    "Replied": True,
-                    "Reply Sentiment": sentiment,
-                },
-            )
-            logger.info("Updated record for lead %s → %s", lead_id, sentiment)
-            if sentiment == "positive":
-                name = record.get("fields", {}).get("Name", email)
-                summary = reply.get("body", "")
-                _notify(name, email, summary)
+            fields = {}
+            if event_type == "open":
+                fields["Email Opened"] = True
+            elif event_type == "bounce":
+                fields.update(
+                    {"Status": "Bounced", "Replied": False, "Reply Sentiment": "bounce"}
+                )
+            elif event_type == "reply":
+                fields.update(
+                    {
+                        "Status": "Responded",
+                        "Replied": True,
+                        "Reply Sentiment": sentiment,
+                    }
+                )
+            elif event_type == "unsubscribe":
+                fields.update({"Replied": True, "Reply Sentiment": "unsubscribe"})
+            elif event_type == "completed":
+                fields["Status"] = "Declined"
+
+            if fields:
+                client.update(record["id"], fields)
+                logger.info("Updated record for Hunter event %s → %s", email, fields)
         else:
-            logger.warning(
-                "No Airtable record found for Instantly Lead ID: %s", lead_id
-            )
+            logger.warning("No Airtable record found for Hunter email: %s", email)
     except Exception:
         logger.exception("Webhook handler error")
         return jsonify({"ok": False, "error": "internal error"}), 500

@@ -22,8 +22,6 @@ def require_env(key: str) -> str:
 # --- Optional integration values ---
 # Required credentials are intentionally loaded lazily via require_env().
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
-NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL", "")
-SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 
 # --- Scoring Thresholds ---
@@ -179,16 +177,10 @@ APOLLO_SEARCH_PAYLOAD = {
     "per_page": 50,
 }
 
-# --- Outreach: Instantly campaign IDs ---
-# Fill these in once campaigns are created in Instantly dashboard
-INSTANTLY_CAMPAIGNS = {
-    "health": os.environ.get("INSTANTLY_CAMPAIGN_HEALTH", ""),
-    "driver": os.environ.get("INSTANTLY_CAMPAIGN_DRIVER", ""),
-    "bluecollar": os.environ.get("INSTANTLY_CAMPAIGN_BLUECOLLAR", ""),
-    "tedx": os.environ.get("INSTANTLY_CAMPAIGN_TEDX", ""),
-    "podcast": os.environ.get("INSTANTLY_CAMPAIGN_PODCAST", ""),
-}
+# --- Outreach: Hunter Sequence ID ---
+# Fill this in once the sequence is created in Hunter dashboard.
+HUNTER_SEQUENCE_ID = os.environ.get("HUNTER_SEQUENCE_ID", "")
 
-INSTANTLY_OPENING_LINE_DEFAULT = (
+HUNTER_OPENING_LINE_DEFAULT = (
     "I came across your story and was genuinely moved by what you've been through."
 )

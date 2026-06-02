@@ -12,7 +12,6 @@ _REQUIRED_STUBS = {
     "APOLLO_KEY": "stub",
     "ANTHROPIC_API_KEY": "stub",
     "HUNTER_KEY": "stub",
-    "INSTANTLY_KEY": "stub",
     "AIRTABLE_PAT": "stub",
     "AIRTABLE_BASE_ID": "stub",
 }

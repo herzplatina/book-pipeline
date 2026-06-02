@@ -58,7 +58,7 @@ def test_run_calls_all_modules(
     mock_score.return_value = _scored_lead(score=8)
     mock_dispatch.return_value = {
         **_scored_lead(score=8),
-        "_outreach_decision": "instantly",
+        "_outreach_decision": "hunter_sequence",
     }
     mock_at.return_value.upsert = MagicMock()
 
@@ -128,9 +128,9 @@ def test_run_returns_summary(
     mock_yt.return_value = [_raw_lead("u1"), _raw_lead("u2")]
     qualifying = _scored_lead("u1", score=9)
     mock_score.side_effect = [qualifying, _scored_lead("u2", score=3)]
-    qualifying["_outreach_decision"] = "instantly"
+    qualifying["_outreach_decision"] = "hunter_sequence"
     mock_dispatch.side_effect = lambda lead, **kw: (
-        lead.__setitem__("_outreach_decision", "instantly") or lead
+        lead.__setitem__("_outreach_decision", "hunter_sequence") or lead
     )
     mock_at.return_value.upsert = MagicMock()
 
@@ -194,7 +194,7 @@ def test_run_upserts_qualifying_leads_to_airtable(
     lead = _scored_lead(score=8)
     mock_score.return_value = lead
     mock_dispatch.side_effect = lambda lead, **kw: (
-        lead.__setitem__("_outreach_decision", "instantly") or lead
+        lead.__setitem__("_outreach_decision", "hunter_sequence") or lead
     )
     mock_upsert = MagicMock()
     mock_at.return_value.upsert = mock_upsert

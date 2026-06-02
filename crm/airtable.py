@@ -71,9 +71,9 @@ class AirtableClient:
         records = self._get({"filterByFormula": formula, "maxRecords": 1})
         return records[0] if records else None
 
-    def find_by_instantly_lead_id(self, lead_id: str) -> dict | None:
-        """Return the first Contacts record matching Instantly Lead ID, or None."""
-        formula = f"{{Instantly Lead ID}}='{_escape(lead_id)}'"
+    def find_by_hunter_lead_id(self, lead_id: str) -> dict | None:
+        """Return the first Contacts record matching Hunter Lead ID, or None."""
+        formula = f"{{Hunter Lead ID}}='{_escape(lead_id)}'"
         records = self._get({"filterByFormula": formula, "maxRecords": 1})
         return records[0] if records else None
 

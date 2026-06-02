@@ -1,7 +1,7 @@
 """Master pipeline orchestrator.
 
 Runs all discovery modules → scores with Claude → enriches via Hunter.io
-→ dispatches via Instantly.ai or human review queue → upserts to Airtable.
+→ dispatches via Hunter Sequences or human review queue → upserts to Airtable.
 
 Usage:
     python pipeline.py                    # full run, all modules
@@ -19,7 +19,7 @@ from config.settings import CLAUDE_SCORE_THRESHOLD
 from crm.airtable import get_client
 from enrichment.hunter import enrich
 from modules import m1_youtube, m2_reddit, m3_serpapi, m4_nonprofits, m5_apollo
-from outreach.instantly import dispatch
+from outreach.hunter_sequences import dispatch
 from scoring.claude_scorer import score
 
 logger = logging.getLogger(__name__)
@@ -170,8 +170,8 @@ def run(
             _record_error(errors, stage="enrich", exc=exc, lead=lead)
 
     # --- Stage 5: Dispatch + CRM upsert ---
-    # _outreach_decision values from dispatch(): "instantly", "review_queue", "skip"
-    _decision_key = {"instantly": "dispatched", "skip": "skipped"}
+    # _outreach_decision values from dispatch(): "hunter_sequence", "review_queue", "skip"
+    _decision_key = {"hunter_sequence": "dispatched", "skip": "skipped"}
     counts = {"dispatched": 0, "review_queue": 0, "skipped": 0}
     for lead in qualifying:
         try:

@@ -121,25 +121,25 @@ The following table maps every discovery source to the story types it surfaces, 
 | Source                        | Story types                                  | Archetypes | Hunter hit rate | Contact method                                         | Outreach channel        |
 | :---------------------------- | :------------------------------------------- | :--------- | :-------------- | :----------------------------------------------------- | :---------------------- |
 | YouTube (personal channel)    | Health testimony, recovery, gig driver plans | 3, 4       | 5–10%           | Channel About email (scrape first), then YouTube DM    | Email or platform DM    |
-| YouTube TEDx search           | Deradicalization, health, comeback           | 1, 2, 3    | 50–65%          | Hunter.io (name \+ employer domain)                    | Email via Instantly     |
+| YouTube TEDx search           | Deradicalization, health, comeback           | 1, 2, 3    | 50–65%          | Hunter.io (name \+ employer domain)                    | Hunter Sequence         |
 | Reddit PRAW (live)            | Driver hustle, criminal reform, recovery     | 2, 3, 4    | \<2%            | Reddit DM via PRAW only                                | Reddit DM (manual tone) |
 | Reddit Arctic Shift (archive) | Covid layoff, addiction recovery             | 3, 5       | \<2%            | Reddit DM via PRAW                                     | Reddit DM               |
-| SerpApi local news            | Covid blue-collar comeback                   | 5          | 35–75%          | Hunter (if business owner) or contact journalist first | Email via Instantly     |
+| SerpApi local news            | Covid blue-collar comeback                   | 5          | 35–75%          | Hunter (if business owner) or contact journalist first | Hunter Sequence         |
 | Apify — nonprofit pages       | Criminal reform, deradicalization            | 1, 2       | 15–25%          | Org comms director — warm intro only                   | Manual email            |
 | StoryCorps archive            | Health, loss, survival, all archetypes       | All        | 10–20%          | StoryCorps facilitator or name+city LinkedIn search    | Platform or LinkedIn DM |
 | The Moth story archive        | Any first-person arc                         | All        | 40–55%          | Moth speaker bureau or personal site from bio          | Email or speaker bureau |
-| TEDx YouTube channel          | Deradicalization, health, comeback           | 1, 3       | 50–65%          | Hunter or TEDx speaker page link                       | Email via Instantly     |
+| TEDx YouTube channel          | Deradicalization, health, comeback           | 1, 3       | 50–65%          | Hunter or TEDx speaker page link                       | Hunter Sequence         |
 | ListenNotes (podcast guests)  | All archetypes                               | All        | 50–60%          | Podcast show notes — guest's own links                 | Email or platform DM    |
 | Medium / Substack essays      | Recovery, immigrant, comeback                | 2, 3, 5    | 35–50%          | Platform message or author bio link                    | Platform DM             |
 | Nonprofit annual reports      | Criminal reform, all                         | 1, 2       | 10–20%          | Org comms director — same as nonprofit pages           | Manual email            |
-| Apollo.io profiles            | Blue-collar Covid pivot, immigrant           | 5          | 70–80%          | Apollo email built-in (check before Hunter)            | Email via Instantly     |
+| Apollo.io profiles            | Blue-collar Covid pivot, immigrant           | 5          | 70–80%          | Apollo email built-in (check before Hunter)            | Hunter Sequence         |
 | LinkedIn manual search        | Blue-collar, professional pivot              | 5          | 50–60%          | LinkedIn message directly — skip Hunter                | LinkedIn DM (manual)    |
 | In-person Uber/Lyft rides     | Entrepreneurial driver                       | 4          | N/A             | Physical card, Airtable manual entry                   | Follow-up email or call |
-| SCORE / Chamber spotlights    | Covid comeback, small business               | 5          | 40–60%          | Hunter (business domain) or contact page               | Email via Instantly     |
+| SCORE / Chamber spotlights    | Covid comeback, small business               | 5          | 40–60%          | Hunter (business domain) or contact page               | Hunter Sequence         |
 | Humans of New York spin-offs  | Any transformation arc                       | All        | 10–20%          | Instagram DM or comment then DM                        | Instagram DM (manual)   |
-| University alumni magazines   | Late bloomer, career pivot                   | All        | 45–60%          | Hunter (alumni employer domain)                        | Email via Instantly     |
+| University alumni magazines   | Late bloomer, career pivot                   | All        | 45–60%          | Hunter (alumni employer domain)                        | Hunter Sequence         |
 | Clean Slate Initiative        | Criminal reform                              | 2          | 10–20%          | Org program director                                   | Manual email            |
-| Veterans org newsletters      | Service-to-civilian reinvention              | All        | 40–55%          | Hunter or org contact                                  | Email via Instantly     |
+| Veterans org newsletters      | Service-to-civilian reinvention              | All        | 40–55%          | Hunter or org contact                                  | Hunter Sequence         |
 
 # **4\. Contact-Finding Logic**
 
@@ -180,9 +180,9 @@ The pipeline applies a waterfall enrichment strategy: each source type has a pri
 
 - Always personalise the opening line to something specific about their story
 
-## **5.2 Automated outreach — Instantly.ai sequences**
+## **5.2 Automated outreach — Hunter Sequences**
 
-The following source types can be handled by Instantly.ai with archetype-specific templates and personalisation variables:
+The following source types can be handled by Hunter Sequences with archetype-specific templates and personalisation variables:
 
 - TEDx speakers, podcast guests, The Moth performers (professional footprint)
 
@@ -192,13 +192,13 @@ The following source types can be handled by Instantly.ai with archetype-specifi
 
 - Local news article subjects who own a business (Hunter email confirmed)
 
-Each Instantly campaign uses three touches:
+Each Hunter Sequence uses two touches:
 
 - Day 1 — initial outreach (archetype template, personalised opening line variable)
 
 - Day 11 — one follow-up only (shorter, no new pitch, softer tone)
 
-- Day 18 — if positive reply webhook fires, move to Airtable 'Responded' and handle manually from this point
+- If positive reply webhook fires, move to Airtable 'Responded' and handle manually from this point
 
 ## **5.3 Platform DM outreach — semi-automated**
 
@@ -212,24 +212,24 @@ Reddit DMs via PRAW and Instagram DMs are sent programmatically but require huma
 
 ## **5.4 Handcraft-required outreach**
 
-The following contacts must be written, reviewed, and sent personally. No automation, no templates, no Instantly sequences.
+The following contacts must be written, reviewed, and sent personally. No automation, no templates, no Hunter Sequences.
 
 | ✋ HANDCRAFT REQUIRED — do not automate this outreach Archetype 1 — Former extremist / spy: always handcrafted. Email the organisation (Life After Hate, Moonshot CVE, speaker bureau) not the individual. Your first email is to a gatekeeper — it must explain the book, your credentials, and why this story matters. Expect 1–2 weeks before an intro is facilitated. Archetype 2 — Reformed criminal (via nonprofit): the comms director email is handcrafted. This is a professional letter requesting facilitated access to alumni. Reference the specific alumnus story if you found it in an annual report. Attach a one-page book overview. Local news subjects who are private individuals (not business owners): the journalist email is handcrafted. You are asking a journalist to vouch for you to their source — this requires a personal, thoughtful note. Do not use a template. StoryCorps facilitator contact: handcrafted — reference the specific story URL and explain the book. Any follow-up after a positive reply: once someone expresses interest, all subsequent messages are handcrafted. Automation ends at the first reply. |
 | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
-| ✋ HANDCRAFT REQUIRED — do not automate this outreach REVIEW GATE — before any batch send in Instantly: Review a sample of 5 outgoing messages per campaign before activating. Confirm personalisation variables have resolved correctly (no blank {first_name} fields). Confirm the correct archetype template is assigned to each lead. Confirm Hunter-verified emails only — no unverified addresses in the sequence. Sign off manually before each new campaign goes live. |
+| ✋ HANDCRAFT REQUIRED — do not automate this outreach REVIEW GATE — before any batch send in Hunter Sequences: Review a sample of 5 outgoing messages per sequence before activating. Confirm personalisation variables have resolved correctly (no blank {first_name} fields). Confirm the correct archetype template is assigned to each lead. Confirm Hunter-verified emails only — no unverified addresses in the sequence. Sign off manually before each new sequence goes live. |
 | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 
 # **6\. Outreach Templates by Archetype**
 
 All templates below are starting points. Personalisation variables are shown in \[brackets\]. The opening line must always be rewritten to reference something specific about the individual's story before sending.
 
-## **Template A — Health transformation (Instantly, automated)**
+## **Template A — Health transformation (Hunter Sequence, automated)**
 
 | Subject: Your story — for a book about lives that changed Hi \[first_name\], \[PERSONALISED OPENING — reference specific story detail here\] I'm writing a book called "Why I Feel the Universe Loves Me" — real stories from people who went through something that changed everything, and came out the other side feeling connected to something larger than themselves. I'd love to hear your story in your own words. No agenda beyond listening. Your anonymity is fully protected if you prefer it. Would a 30-minute conversation work for you? |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 
-## **Template B — Covid comeback (Instantly, automated)**
+## **Template B — Covid comeback (Hunter Sequence, automated)**
 
 | Subject: What you built after 2020 — for a book Hi \[first_name\], \[PERSONALISED OPENING — reference article, city, or specific detail\] I'm writing a book about people who lost something in 2020 and found something they couldn't have expected. Not a pandemic book — a resilience book. Real stories, real names or anonymous, entirely your choice. Would you be willing to tell me your story? 30 minutes, no pressure. |
 | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -246,13 +246,13 @@ All templates below are starting points. Personalisation variables are shown in 
 
 # **7\. CRM Status Workflow**
 
-All candidates are tracked in Airtable with the following status progression. Automated transitions are triggered by Instantly webhooks. Manual transitions require human action.
+All candidates are tracked in Airtable with the following status progression. Automated transitions are triggered by Hunter webhooks. Manual transitions require human action.
 
 | Status           | Trigger                              | Automated / manual                   | Next action                                                  |
 | :--------------- | :----------------------------------- | :----------------------------------- | :----------------------------------------------------------- |
 | **New**          | Lead added to Airtable by pipeline   | Automated                            | Review record, confirm score ≥7, approve for outreach        |
-| **Contacted**    | Instantly sends initial message      | Automated                            | No action — wait for reply                                   |
-| **Followed up**  | Instantly sends day-11 follow-up     | Automated                            | No action — wait for reply                                   |
+| **Contacted**    | Hunter sends initial message         | Automated                            | No action — wait for reply                                   |
+| **Followed up**  | Hunter sends day-11 follow-up        | Automated                            | No action — wait for reply                                   |
 | **Responded**    | Positive reply webhook fires         | Automated detection, manual handling | YOU take over — handcraft all replies from here              |
 | **Pre-screened** | 10-min call completed                | Manual                               | Log answer to the turning-point question. Pass or shortlist. |
 | **Shortlisted**  | Pre-screen passed                    | Manual                               | Send consent form, book interview slot for month 2           |
@@ -275,7 +275,7 @@ All candidates are tracked in Airtable with the following status progression. Au
 
 - All raw leads scored by Claude API, deduplicated, loaded into Airtable
 
-- First Instantly campaigns launched for fast archetypes (health, driver, blue-collar)
+- First Hunter Sequences launched for fast archetypes (health, driver, blue-collar)
 
 - Handcrafted emails sent to Life After Hate, Defy Ventures, SCORE comms contacts
 
@@ -287,7 +287,7 @@ All candidates are tracked in Airtable with the following status progression. Au
 
 - First replies begin arriving — handle all manually from first reply
 
-- Review Instantly open rates — adjust subject lines if below 30%
+- Review Hunter open rates — adjust subject lines if below 30%
 
 ## **Week 3 — pre-screen calls**
 
@@ -297,7 +297,7 @@ All candidates are tracked in Airtable with the following status progression. Au
 
 - Shortlist decisions made — aim for 10–15 confirmed by end of week
 
-- Day-11 follow-ups sent by Instantly automatically
+- Day-11 follow-ups sent by Hunter automatically
 
 ## **Week 4 — lock the interview calendar**
 
