@@ -187,7 +187,67 @@ def discover() -> list[dict]:
     return leads
 
 
+_SMOKE_REQUIRED_KEYS = {
+    "Archetype",
+    "Source",
+    "Source URL",
+    "Status",
+    "_content",
+    "_post_id",
+    "_reddit_author",
+    "_subreddit",
+}
+
+
+def run_smoke_test() -> dict:
+    """Fetch a small live sample from PRAW and Arctic Shift and validate lead structure.
+
+    Makes real API calls using configured credentials. Intended to be run manually
+    (python -m modules.m2_reddit --smoke-test) to confirm credentials and API
+    connectivity are working before a full pipeline run.
+    """
+    _SMOKE_SUBREDDIT = "UberDrivers"
+    _SMOKE_ARCHETYPE = "driver"
+    _SMOKE_KEYWORD = REDDIT_KEYWORDS[0]
+
+    reddit = _praw_client()
+    praw_leads = _praw_fetch(reddit, _SMOKE_SUBREDDIT, _SMOKE_ARCHETYPE)
+    arctic_leads = _arctic_fetch(_SMOKE_SUBREDDIT, _SMOKE_KEYWORD, _SMOKE_ARCHETYPE)
+
+    for lead in praw_leads + arctic_leads:
+        missing = _SMOKE_REQUIRED_KEYS - set(lead.keys())
+        if missing:
+            raise RuntimeError(
+                f"Lead missing required keys: {missing}; lead={lead!r}"
+            )
+
+    result = {
+        "praw_leads": len(praw_leads),
+        "arctic_leads": len(arctic_leads),
+        "total_leads": len(praw_leads) + len(arctic_leads),
+        "subreddit": _SMOKE_SUBREDDIT,
+        "keyword": _SMOKE_KEYWORD,
+    }
+    logger.info("Reddit smoke test complete: %s", result)
+    return result
+
+
 if __name__ == "__main__":
     from modules.runner import run
 
-    run(discover, id_field="_reddit_author", id_width=20)
+    _parser = argparse.ArgumentParser(description="Reddit discovery module.")
+    _parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Fetch a small live sample and validate lead structure.",
+    )
+    _args = _parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if _args.smoke_test:
+        _result = run_smoke_test()
+        print("=== Reddit Smoke Test ===")
+        for _key, _val in _result.items():
+            print(f"{_key}: {_val}")
+    else:
+        run(discover, id_field="_reddit_author", id_width=20)

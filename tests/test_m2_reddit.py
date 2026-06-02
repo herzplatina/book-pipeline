@@ -278,3 +278,65 @@ def test_discover_sleeps_between_calls(mock_client, mock_praw, mock_arctic, mock
     arctic_calls = total_subreddits * m2._ARCTIC_MAX_KEYWORDS
     expected_sleeps = total_subreddits + arctic_calls
     assert mock_sleep.call_count == expected_sleeps
+
+
+# ---------------------------------------------------------------------------
+# run_smoke_test()
+# ---------------------------------------------------------------------------
+
+
+@patch("modules.m2_reddit._arctic_fetch")
+@patch("modules.m2_reddit._praw_fetch")
+@patch("modules.m2_reddit._praw_client")
+def test_run_smoke_test_returns_summary_dict(mock_client, mock_praw, mock_arctic):
+    mock_praw.return_value = [
+        m2._build_lead(
+            "p1", "Title", "Body", "u/x", "/r/UberDrivers/p1/", "driver", "UberDrivers"
+        )
+    ]
+    mock_arctic.return_value = [
+        m2._build_lead(
+            "a1",
+            "Title2",
+            "Body2",
+            "u/y",
+            "/r/UberDrivers/a1/",
+            "driver",
+            "UberDrivers",
+        )
+    ]
+
+    result = m2.run_smoke_test()
+
+    assert result["praw_leads"] == 1
+    assert result["arctic_leads"] == 1
+    assert result["total_leads"] == 2
+    assert result["subreddit"] == "UberDrivers"
+    assert "keyword" in result
+
+
+@patch("modules.m2_reddit._arctic_fetch")
+@patch("modules.m2_reddit._praw_fetch")
+@patch("modules.m2_reddit._praw_client")
+def test_run_smoke_test_handles_empty_results(mock_client, mock_praw, mock_arctic):
+    mock_praw.return_value = []
+    mock_arctic.return_value = []
+
+    result = m2.run_smoke_test()
+
+    assert result["total_leads"] == 0
+    assert result["praw_leads"] == 0
+    assert result["arctic_leads"] == 0
+
+
+@patch("modules.m2_reddit._arctic_fetch")
+@patch("modules.m2_reddit._praw_fetch")
+@patch("modules.m2_reddit._praw_client")
+def test_run_smoke_test_raises_on_malformed_lead(mock_client, mock_praw, mock_arctic):
+    import pytest
+
+    mock_praw.return_value = [{"Archetype": "driver"}]  # missing required keys
+    mock_arctic.return_value = []
+
+    with pytest.raises(RuntimeError, match="missing required keys"):
+        m2.run_smoke_test()
