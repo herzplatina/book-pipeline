@@ -1,4 +1,5 @@
 .env
+.claude/
 # All lead output — never commit real data regardless of format
 data/*
 !data/.gitkeep
