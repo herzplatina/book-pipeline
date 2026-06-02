@@ -12,13 +12,13 @@ Current operating scope: Apollo, Apify, and nonprofit/archive scraping are pause
 Discover → Score → Enrich → Outreach → CRM (Airtable)
 ```
 
-| Stage        | What it does                                                                                                   |
-| ------------ | -------------------------------------------------------------------------------------------------------------- |
+| Stage        | What it does                                                                                                                                         |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Discover** | Active sources: SerpApi local news, YouTube, Reddit (PRAW + Arctic Shift), and ListenNotes. Apollo/Apify/nonprofit scraping remain paused for later. |
-| **Score**    | Claude Haiku evaluates each lead (1–10) and extracts name, archetype, turning point, contact clues             |
-| **Enrich**   | Hunter.io email waterfall (confidence ≥ 70); platform DMs for non-professional sources                         |
-| **Outreach** | Hunter Sequences for standard archetypes; human-gated queue for Reddit DMs and sensitive contacts             |
-| **CRM**      | Airtable Contacts table; Hunter webhook updates status on reply                                                |
+| **Score**    | Claude Haiku evaluates each lead (1–10) and extracts name, archetype, turning point, contact clues                                                   |
+| **Enrich**   | Hunter.io email waterfall (confidence ≥ 70); platform DMs for non-professional sources                                                               |
+| **Outreach** | Hunter Sequences for standard archetypes; human-gated queue for Reddit DMs and sensitive contacts                                                    |
+| **CRM**      | Airtable Contacts table; Hunter webhook updates status on reply                                                                                      |
 
 ## Setup
 
