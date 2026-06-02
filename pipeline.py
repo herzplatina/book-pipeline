@@ -63,6 +63,7 @@ def _record_error(
 def _write_run_report(
     summary: dict,
     errors: list[dict],
+    qualifying_leads: list[dict],
     *,
     report_dir: str | Path,
     run_id: str,
@@ -96,7 +97,32 @@ def _write_run_report(
     else:
         errors_path.write_text("No errors recorded.\n", encoding="utf-8")
 
+    qualified_path = path / f"{run_id}-qualified-leads.json"
+    qualified_payload = [_checkpoint_lead(lead) for lead in qualifying_leads]
+    qualified_path.write_text(
+        json.dumps(qualified_payload, indent=2) + "\n", encoding="utf-8"
+    )
+
     logger.info("Wrote run report artifacts to %s", path)
+
+
+def _checkpoint_lead(lead: dict) -> dict:
+    """Return non-secret qualified lead fields useful for post-run review."""
+    return {
+        "name": lead.get("Name"),
+        "source": lead.get("Source"),
+        "source_url": lead.get("Source URL"),
+        "channel_url": lead.get("Channel URL"),
+        "archetype": lead.get("Archetype"),
+        "claude_score": lead.get("Claude Score"),
+        "archetype_match": lead.get("_archetype_match"),
+        "disposition": lead.get("_disposition"),
+        "story_summary": lead.get("Story Summary"),
+        "turning_point": lead.get("Turning Point"),
+        "contact_method": lead.get("Contact Method"),
+        "contact_value": lead.get("Contact Value"),
+        "email": lead.get("Email"),
+    }
 
 
 def print_summary(summary: dict) -> None:
@@ -162,6 +188,14 @@ def run(
         len(qualifying),
         len(scored),
     )
+    for lead in qualifying:
+        if lead.get("Source") == "youtube" and lead.get("Channel URL"):
+            logger.info(
+                "Qualified YouTube lead channel_url=%s source_url=%s score=%s",
+                lead["Channel URL"],
+                lead.get("Source URL", ""),
+                lead.get("Claude Score", ""),
+            )
 
     # --- Stage 4: Enrich ---
     for lead in qualifying:
@@ -205,7 +239,13 @@ def run(
     }
     logger.info("Pipeline complete: %s", summary)
     if report_dir:
-        _write_run_report(summary, errors, report_dir=report_dir, run_id=run_id)
+        _write_run_report(
+            summary,
+            errors,
+            qualifying,
+            report_dir=report_dir,
+            run_id=run_id,
+        )
     return summary
 
 

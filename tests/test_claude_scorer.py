@@ -233,6 +233,19 @@ def test_score_lead_does_not_overwrite_existing_name():
     assert lead["First Name"] == "Original"
 
 
+def test_score_lead_preserves_existing_contact_clue_when_claude_omits_it():
+    scorer = _mock_scorer(_sample_scoring(contact_clue=None))
+    lead = {
+        "Archetype": "health",
+        "_content": "Video description with jane@example.com.",
+        "_contact_clue": "jane@example.com",
+    }
+
+    scorer.score_lead(lead)
+
+    assert lead["_contact_clue"] == "jane@example.com"
+
+
 def test_score_lead_uses_archetype_hint():
     scorer = _mock_scorer(_sample_scoring())
     lead = {"Archetype": "criminal", "_content": "story text"}

@@ -28,6 +28,7 @@ CONTACTS_FIELDS: dict[str, type] = {
     "Archetype": str,  # one of ARCHETYPES
     "Source": str,
     "Source URL": str,
+    "Channel URL": str,
     "City": str,
     "Date Window": str,
     "Claude Score": int,

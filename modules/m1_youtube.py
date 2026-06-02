@@ -5,6 +5,7 @@ Scoring is handled by the shared ``scoring.claude_scorer`` module (Session 3).
 """
 
 import logging
+import re
 import time
 
 from googleapiclient.discovery import build
@@ -24,6 +25,43 @@ from config.settings import (
 logger = logging.getLogger(__name__)
 
 _YT_BASE_URL = "https://www.youtube.com/watch?v="
+_YT_CHANNEL_BASE_URL = "https://www.youtube.com/channel/"
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+_NAME_RE = re.compile(
+    r"\b(?:my name is|i am|i'm|this is|meet|featuring|interview with|with)\s+"
+    r"([A-Za-z][A-Za-z'-]+(?:\s+[A-Za-z][A-Za-z'-]+){1,3})\b",
+    re.IGNORECASE,
+)
+_NAME_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "at",
+    "but",
+    "for",
+    "from",
+    "going",
+    "here",
+    "in",
+    "not",
+    "of",
+    "on",
+    "or",
+    "really",
+    "so",
+    "that",
+    "the",
+    "this",
+    "to",
+    "today",
+    "very",
+    "we",
+    "when",
+    "where",
+    "who",
+    "with",
+    "you",
+}
 
 
 def _build_client():
@@ -51,8 +89,11 @@ def _youtube_search(client, query: str) -> list[dict]:
 def _get_transcript(video_id: str) -> str:
     """Fetch English transcript text. Returns empty string on any failure."""
     try:
-        segments = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
-        return " ".join(seg["text"] for seg in segments)
+        segments = _fetch_transcript_segments(video_id)
+        return " ".join(
+            segment["text"] if isinstance(segment, dict) else segment.text
+            for segment in segments
+        )
     except (TranscriptsDisabled, NoTranscriptFound):
         return ""
     except Exception:
@@ -60,17 +101,72 @@ def _get_transcript(video_id: str) -> str:
         return ""
 
 
+def _fetch_transcript_segments(video_id: str):
+    """Call either supported youtube-transcript-api interface."""
+    if hasattr(YouTubeTranscriptApi, "get_transcript"):
+        return YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
+    return YouTubeTranscriptApi().fetch(video_id, languages=["en"])
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(value)
+    return unique
+
+
+def _extract_emails(*texts: str) -> list[str]:
+    """Extract email addresses from video-owned text only."""
+    combined = "\n".join(text for text in texts if text)
+    return _dedupe([email.rstrip(".,;:") for email in _EMAIL_RE.findall(combined)])
+
+
+def _normalize_name_candidate(candidate: str) -> str | None:
+    words = [word.strip(" .,:;") for word in candidate.split()]
+    cleaned: list[str] = []
+    for word in words:
+        if word.lower() in _NAME_STOP_WORDS:
+            break
+        cleaned.append(word)
+
+    if len(cleaned) < 2:
+        return None
+    return " ".join(
+        word if any(char.isupper() for char in word) else word.title()
+        for word in cleaned
+    )
+
+
+def _extract_name_candidates(*texts: str) -> list[str]:
+    """Conservatively extract full-name candidates from description/transcript text."""
+    combined = "\n".join(text for text in texts if text)
+    candidates = [
+        candidate
+        for match in _NAME_RE.finditer(combined)
+        if (candidate := _normalize_name_candidate(match.group(1))) is not None
+    ]
+    return _dedupe(candidates)
+
+
 def _build_lead(item: dict, transcript: str, archetype: str) -> dict:
     snippet = item.get("snippet", {})
     video_id = item["id"]["videoId"]
     title = snippet.get("title", "")
     description = snippet.get("description", "")
+    channel_id = snippet.get("channelId", "")
     channel = snippet.get("channelTitle", "")
 
     parts = [p for p in (title, description, transcript) if p]
     content = "\n\n".join(parts)
+    emails = _extract_emails(description, transcript)
+    name_candidates = _extract_name_candidates(description, transcript)
 
-    return {
+    lead = {
         "Archetype": archetype,
         "Source": "youtube",
         "Source URL": f"{_YT_BASE_URL}{video_id}",
@@ -79,6 +175,15 @@ def _build_lead(item: dict, transcript: str, archetype: str) -> dict:
         "_video_id": video_id,
         "_channel": channel,
     }
+    if channel_id:
+        lead["Channel URL"] = f"{_YT_CHANNEL_BASE_URL}{channel_id}"
+    if emails:
+        lead["_emails"] = emails
+        lead["_contact_clue"] = emails[0]
+    if name_candidates:
+        lead["_name_candidates"] = name_candidates
+
+    return lead
 
 
 def discover() -> list[dict]:

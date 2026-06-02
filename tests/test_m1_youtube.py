@@ -1,5 +1,6 @@
 """Unit tests for modules/m1_youtube.py — all external I/O is mocked."""
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import modules.m1_youtube as m1
@@ -11,15 +12,38 @@ from config.settings import YOUTUBE_SEARCH_QUERIES
 # ---------------------------------------------------------------------------
 
 
-def _make_item(video_id="abc123", title="Healing Story", channel="MyChannel"):
+def _make_item(
+    video_id="abc123",
+    title="Healing Story",
+    channel="MyChannel",
+    channel_id="channel_123",
+):
     return {
         "id": {"videoId": video_id},
         "snippet": {
             "title": title,
             "description": "A description of the video.",
             "channelTitle": channel,
+            "channelId": channel_id,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# _get_transcript
+# ---------------------------------------------------------------------------
+
+
+def test_get_transcript_supports_new_fetch_api():
+    class FakeTranscriptApi:
+        def fetch(self, video_id, languages):
+            return [
+                SimpleNamespace(text="hello"),
+                SimpleNamespace(text="world"),
+            ]
+
+    with patch.object(m1, "YouTubeTranscriptApi", FakeTranscriptApi):
+        assert m1._get_transcript("abc123") == "hello world"
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +61,7 @@ def test_build_lead_sets_required_fields():
     assert lead["Status"] == "New"
     assert lead["_video_id"] == "abc123"
     assert lead["_channel"] == "MyChannel"
+    assert lead["Channel URL"] == "https://www.youtube.com/channel/channel_123"
 
 
 def test_build_lead_content_includes_title_description_transcript():
@@ -46,6 +71,44 @@ def test_build_lead_content_includes_title_description_transcript():
     assert "My Healing Story" in lead["_content"]
     assert "A description of the video." in lead["_content"]
     assert "the transcript text" in lead["_content"]
+
+
+def test_build_lead_extracts_contact_hints_from_description_and_transcript_only():
+    item = _make_item(title="Title with Jane Ignored")
+    item["snippet"]["description"] = (
+        "Meet Jane Smith. Contact her at jane@example.com."
+    )
+    transcript = "Today I am Maria Garcia and you can reach me at maria@example.org."
+
+    lead = m1._build_lead(item, transcript, "health")
+
+    assert lead["_emails"] == ["jane@example.com", "maria@example.org"]
+    assert lead["_contact_clue"] == "jane@example.com"
+    assert lead["_name_candidates"] == ["Jane Smith", "Maria Garcia"]
+
+
+def test_build_lead_does_not_extract_names_or_emails_from_channel_metadata():
+    item = _make_item()
+    item["snippet"]["channelTitle"] = "Jane Smith jane@example.com"
+
+    lead = m1._build_lead(item, "", "health")
+
+    assert "_emails" not in lead
+    assert "_contact_clue" not in lead
+    assert "_name_candidates" not in lead
+    assert "_channel_id" not in lead
+    assert "_channel_url" not in lead
+    assert "_channel_description" not in lead
+    assert lead["Channel URL"] == "https://www.youtube.com/channel/channel_123"
+
+
+def test_build_lead_does_not_extract_urls_as_contact_clues():
+    item = _make_item()
+    item["snippet"]["description"] = "Portfolio: https://example.com/jane"
+
+    lead = m1._build_lead(item, "", "health")
+
+    assert "_contact_clue" not in lead
 
 
 def test_build_lead_content_omits_empty_transcript():

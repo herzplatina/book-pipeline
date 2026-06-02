@@ -16,6 +16,9 @@ def _raw_lead(url="https://example.com/1", source="youtube", archetype="health")
         "Archetype": archetype,
         "Source": source,
         "Source URL": url,
+        "Channel URL": "https://www.youtube.com/channel/channel_123"
+        if source == "youtube"
+        else "",
         "Status": "New",
         "_content": "Story content.",
     }
@@ -253,11 +256,51 @@ def test_run_writes_report_artifacts(
     assert result["errors"] == 1
     summary_files = list(tmp_path.glob("*-summary.json"))
     error_files = list(tmp_path.glob("*-errors.log"))
+    qualified_files = list(tmp_path.glob("*-qualified-leads.json"))
     assert len(summary_files) == 1
     assert len(error_files) == 1
+    assert len(qualified_files) == 1
 
     payload = json.loads(summary_files[0].read_text(encoding="utf-8"))
     assert payload["summary"]["discovered"] == 0
     assert payload["errors"][0]["stage"] == "discover"
     assert payload["errors"][0]["module"] == "listennotes"
     assert "API down" in error_files[0].read_text(encoding="utf-8")
+    assert json.loads(qualified_files[0].read_text(encoding="utf-8")) == []
+
+
+@patch("pipeline.get_client")
+@patch("pipeline.dispatch")
+@patch("pipeline.enrich")
+@patch("pipeline.score")
+@patch.object(pipeline.MODULES["youtube"], "discover")
+def test_run_checkpoints_qualified_youtube_channel_url(
+    mock_yt,
+    mock_score,
+    mock_enrich,
+    mock_dispatch,
+    mock_at,
+    tmp_path,
+):
+    high = _raw_lead("https://www.youtube.com/watch?v=high")
+    low = _raw_lead("https://www.youtube.com/watch?v=low")
+    high_scored = _scored_lead("https://www.youtube.com/watch?v=high", score=8)
+    low_scored = _scored_lead("https://www.youtube.com/watch?v=low", score=4)
+    high_scored["Channel URL"] = high["Channel URL"]
+    low_scored["Channel URL"] = low["Channel URL"]
+    mock_yt.return_value = [high, low]
+    mock_score.side_effect = [high_scored, low_scored]
+    mock_dispatch.side_effect = lambda lead, **kw: (
+        lead.__setitem__("_outreach_decision", "skip") or lead
+    )
+    mock_at.return_value.upsert = MagicMock()
+
+    pipeline.run(module_names=["youtube"], report_dir=tmp_path)
+
+    qualified_file = next(tmp_path.glob("*-qualified-leads.json"))
+    qualified = json.loads(qualified_file.read_text(encoding="utf-8"))
+    assert len(qualified) == 1
+    assert qualified[0]["source_url"] == "https://www.youtube.com/watch?v=high"
+    assert qualified[0]["channel_url"] == "https://www.youtube.com/channel/channel_123"
+    upserted_lead = mock_at.return_value.upsert.call_args.args[0]
+    assert upserted_lead["Channel URL"] == "https://www.youtube.com/channel/channel_123"

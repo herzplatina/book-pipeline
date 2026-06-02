@@ -9,6 +9,7 @@ Scoring is handled downstream by scoring.claude_scorer.
 All Reddit leads route through the human review queue (sensitivity rule).
 """
 
+import argparse
 import logging
 import time
 
