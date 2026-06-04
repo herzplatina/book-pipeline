@@ -3,7 +3,15 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import pipeline
+
+
+@pytest.fixture(autouse=True)
+def _no_email(monkeypatch):
+    """Suppress send_run_report in all pipeline tests."""
+    monkeypatch.setattr(pipeline, "send_run_report", lambda *a, **kw: None)
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +247,57 @@ def test_run_review_queue_leads_skip_contacts_upsert(
     mock_upsert.assert_not_called()
     assert result["review_queue"] == 1
     assert result["dispatched"] == 0
+
+
+@patch("pipeline.get_client")
+@patch("pipeline.enrich")
+@patch("pipeline.score")
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["youtube"], "discover")
+def test_run_no_dispatch_review_queue_writes_manual_queue(
+    mock_yt, mock_rd, mock_sp, mock_np, mock_score, mock_enrich, mock_at
+):
+    """no_dispatch=True: review_queue leads must still reach the Manual DM Queue."""
+    mock_yt.return_value = [_raw_lead()]
+    lead = _scored_lead(score=7, disposition="review")
+    mock_score.return_value = lead
+    mock_add_queue = MagicMock()
+    mock_upsert = MagicMock()
+    mock_at.return_value.add_to_manual_queue = mock_add_queue
+    mock_at.return_value.upsert = mock_upsert
+
+    result = pipeline.run(no_dispatch=True)
+
+    mock_add_queue.assert_called_once()
+    mock_upsert.assert_not_called()
+    assert result["review_queue"] == 1
+
+
+@patch("pipeline.get_client")
+@patch("pipeline.enrich")
+@patch("pipeline.score")
+@patch.object(pipeline.MODULES["listennotes"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["serpapi"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["reddit"], "discover", return_value=[])
+@patch.object(pipeline.MODULES["youtube"], "discover")
+def test_run_no_dispatch_hunter_sequence_upserts_contacts(
+    mock_yt, mock_rd, mock_sp, mock_np, mock_score, mock_enrich, mock_at
+):
+    """no_dispatch=True: hunter_sequence leads are upserted to Contacts, no Hunter call."""
+    mock_yt.return_value = [_raw_lead()]
+    lead = _scored_lead(score=8, disposition="auto")
+    lead["Email"] = "jane@example.com"
+    mock_score.return_value = lead
+    mock_upsert = MagicMock()
+    mock_at.return_value.upsert = mock_upsert
+
+    with patch("outreach.hunter_sequences.HUNTER_SEQUENCE_ID", "seq-123"):
+        result = pipeline.run(no_dispatch=True)
+
+    mock_upsert.assert_called_once()
+    assert result["dispatched"] == 1
 
 
 @patch("pipeline.get_client")

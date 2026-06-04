@@ -28,7 +28,7 @@ HUNTER_CONFIDENCE_MIN = int(os.environ.get("HUNTER_CONFIDENCE_MIN", "70"))
 SERPAPI_SLEEP_SECONDS = float(os.environ.get("SERPAPI_SLEEP_SECONDS", "1.2"))
 YOUTUBE_SLEEP_SECONDS = float(os.environ.get("YOUTUBE_SLEEP_SECONDS", "0.5"))
 REDDIT_SLEEP_SECONDS = float(os.environ.get("REDDIT_SLEEP_SECONDS", "1.0"))
-NONPROFIT_SLEEP_SECONDS = float(os.environ.get("NONPROFIT_SLEEP_SECONDS", "1.0"))
+LISTENNOTES_SLEEP_SECONDS = float(os.environ.get("LISTENNOTES_SLEEP_SECONDS", "1.0"))
 APOLLO_SLEEP_SECONDS = float(os.environ.get("APOLLO_SLEEP_SECONDS", "1.0"))
 
 # --- Discovery: YouTube ---
@@ -135,16 +135,6 @@ QUERY_TERMS = [
     '"lost everything" "Covid" "now"',
     '"pandemic" "unemployed" "entrepreneur"',
     '"furloughed" "Covid" "new business"',
-]
-
-# --- Discovery: Nonprofits ---
-NONPROFIT_URLS = [
-    "https://defyventures.org/alumni-stories/",
-    "https://www.prisonfellowship.org/stories/",
-    "https://thedoefund.org/stories/",
-    "https://lifeafterhate.org/our-team/",
-    "https://moonshotcve.com/people/",
-    "https://cleanslate.org/stories/",
 ]
 
 LISTENNOTES_QUERIES = [

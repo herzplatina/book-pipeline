@@ -16,6 +16,7 @@ import anthropic
 
 from config.settings import require_env
 from scoring.prompts import ARCHETYPE_HINTS, SYSTEM_PROMPT, build_user_message
+from utils import _parse_json_object
 
 logger = logging.getLogger(__name__)
 
@@ -39,19 +40,6 @@ def get_disposition(score: int, archetype_match: bool) -> Disposition:
     if score >= 8 and archetype_match:
         return "auto"
     return "review"
-
-
-def _parse_json_object(text: str) -> dict:
-    """Parse a JSON object, tolerating common markdown/code-fence wrappers."""
-    stripped = text.strip()
-    try:
-        return json.loads(stripped)
-    except json.JSONDecodeError:
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start == -1 or end == -1 or end < start:
-            raise
-        return json.loads(stripped[start : end + 1])
 
 
 class ClaudeScorer:
@@ -112,7 +100,7 @@ class ClaudeScorer:
         lead["Claude Score"] = score
         lead["Story Summary"] = scoring.get("summary")
         lead["Turning Point"] = scoring.get("turning_point")
-        lead["_contact_clue"] = scoring.get("contact_clue") or lead.get("_contact_clue")
+        lead["_contact_clue"] = lead.get("_contact_clue") or scoring.get("contact_clue")
         lead["_archetype_match"] = archetype_match
         lead["_disposition"] = get_disposition(score, archetype_match)
 

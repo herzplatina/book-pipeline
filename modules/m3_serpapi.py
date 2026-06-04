@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # True = 5 cities × 6 windows × 3 queries = 90 calls (SerpApi free tier)
 # False = 8 cities × 6 windows × 6 queries = 288 calls (Basic plan required)
 REDUCED_MATRIX = True
+_smoke_max_cells: int | None = None
 
 _SERPAPI_URL = "https://serpapi.com/search"
 
@@ -107,8 +108,9 @@ def discover(reduced: bool | None = None, max_cells: int | None = None) -> list[
         REDUCED_MATRIX = reduced
 
     matrix = _build_matrix()
-    if max_cells is not None:
-        matrix = matrix[:max_cells]
+    cap = max_cells if max_cells is not None else _smoke_max_cells
+    if cap is not None:
+        matrix = matrix[:cap]
     logger.info("SerpApi matrix: %d cells (reduced=%s)", len(matrix), REDUCED_MATRIX)
 
     seen_urls: set[str] = set()

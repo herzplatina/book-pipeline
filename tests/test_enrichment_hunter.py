@@ -160,7 +160,7 @@ def test_enrich_calls_email_finder_with_name_and_domain(mock_finder, mock_search
     mock_finder.return_value = ("jane@example.com", 80)
     lead = _base_lead(_contact_clue="https://example.com")
     h.enrich(lead)
-    mock_finder.assert_called_once_with("example.com", "Jane", "Smith")
+    mock_finder.assert_called_once_with("example.com", "Jane", "Smith", None)
     assert lead["Email"] == "jane@example.com"
 
 
@@ -173,7 +173,7 @@ def test_enrich_falls_back_to_domain_search_when_no_name(mock_finder, mock_searc
     )
     h.enrich(lead)
     mock_finder.assert_not_called()
-    mock_search.assert_called_once_with("example.com")
+    mock_search.assert_called_once_with("example.com", None)
     assert lead["Email"] == "info@example.com"
 
 

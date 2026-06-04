@@ -4,6 +4,7 @@ discover() returns raw leads with ``_content`` set to title + description + tran
 Scoring is handled by the shared ``scoring.claude_scorer`` module (Session 3).
 """
 
+import concurrent.futures
 import logging
 import re
 import time
@@ -21,12 +22,13 @@ from config.settings import (
     YOUTUBE_SLEEP_SECONDS,
     require_env,
 )
+from utils import _dedupe, _extract_emails
 
 logger = logging.getLogger(__name__)
 
 _YT_BASE_URL = "https://www.youtube.com/watch?v="
 _YT_CHANNEL_BASE_URL = "https://www.youtube.com/channel/"
-_EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+_TRANSCRIPT_TIMEOUT = 15
 _NAME_RE = re.compile(
     r"\b(?:my name is|i am|i'm|this is|meet|featuring|interview with|with)\s+"
     r"([A-Za-z][A-Za-z'-]+(?:\s+[A-Za-z][A-Za-z'-]+){1,3})\b",
@@ -89,12 +91,14 @@ def _youtube_search(client, query: str) -> list[dict]:
 def _get_transcript(video_id: str) -> str:
     """Fetch English transcript text. Returns empty string on any failure."""
     try:
-        segments = _fetch_transcript_segments(video_id)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_fetch_transcript_segments, video_id)
+            segments = future.result(timeout=_TRANSCRIPT_TIMEOUT)
         return " ".join(
             segment["text"] if isinstance(segment, dict) else segment.text
             for segment in segments
         )
-    except (TranscriptsDisabled, NoTranscriptFound):
+    except (TranscriptsDisabled, NoTranscriptFound, concurrent.futures.TimeoutError):
         return ""
     except Exception:
         logger.exception("Transcript fetch failed for video_id=%s", video_id)
@@ -106,24 +110,6 @@ def _fetch_transcript_segments(video_id: str):
     if hasattr(YouTubeTranscriptApi, "get_transcript"):
         return YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
     return YouTubeTranscriptApi().fetch(video_id, languages=["en"])
-
-
-def _dedupe(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    unique: list[str] = []
-    for value in values:
-        key = value.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(value)
-    return unique
-
-
-def _extract_emails(*texts: str) -> list[str]:
-    """Extract email addresses from video-owned text only."""
-    combined = "\n".join(text for text in texts if text)
-    return _dedupe([email.rstrip(".,;:") for email in _EMAIL_RE.findall(combined)])
 
 
 def _normalize_name_candidate(candidate: str) -> str | None:

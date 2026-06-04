@@ -31,6 +31,7 @@ CONTACTS_FIELDS: dict[str, type] = {
     "Channel URL": str,
     "City": str,
     "Date Window": str,
+    "Interviewee Metadata": str,
     "Claude Score": int,
     "Story Summary": str,
     "Turning Point": str,
@@ -57,6 +58,46 @@ CONTACTS_FIELDS: dict[str, type] = {
 
 # Fields required when creating a new record
 REQUIRED_FIELDS = {"Source", "Source URL", "Archetype", "Status"}
+
+# Single source of truth for which source-specific fields each discovery module
+# contributes to the Manual DM Queue table, beyond the common base set.
+# Only populated values are written — empty strings are never sent to Airtable.
+# Add a new source here when a new discovery module is introduced.
+QUEUE_SOURCE_FIELDS: dict[str, tuple[str, ...]] = {
+    "youtube": ("Channel URL",),
+    "reddit": ("Reddit Username", "Subreddit"),
+    "listennotes": (
+        "Podcast Name",
+        "Episode Title",
+        "Website URLs",
+        "Interviewee Metadata",
+    ),
+    "serpapi": ("City", "Date Window"),
+}
+
+
+def build_queue_record(lead: dict) -> dict:
+    """Build a Manual DM Queue record from a lead.
+
+    Assembles the base fields common to all sources, then adds the populated
+    source-specific fields from QUEUE_SOURCE_FIELDS. Unknown source values
+    produce no extra fields. Empty values are never written to Airtable.
+    """
+    optional = {
+        "Source URL": lead.get("Source URL", ""),
+        "Archetype": lead.get("Archetype", ""),
+        "Name": lead.get("Name", ""),
+        "Contact Method": lead.get("Contact Method", ""),
+        "Contact Value": lead.get("Contact Value", ""),
+        "Notes": lead.get("Story Summary", ""),
+    }
+    fields: dict = {"Status": "Pending"}
+    fields.update({k: v for k, v in optional.items() if v})
+    for field in QUEUE_SOURCE_FIELDS.get(lead.get("Source", ""), ()):
+        value = lead.get(field)
+        if value:
+            fields[field] = value
+    return fields
 
 
 def validate_lead(lead: dict) -> list[str]:

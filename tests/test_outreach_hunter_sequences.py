@@ -12,9 +12,14 @@ def _lead(**kwargs):
         "Source URL": "https://www.youtube.com/watch?v=abc",
         "Status": "New",
         "Email": "jane@example.com",
+        "Name": "Jane Smith",
         "First Name": "Jane",
         "Last Name": "Smith",
         "Story Summary": "Jane overcame cancer and now coaches others.",
+        "Podcast Name": "Healing Show",
+        "Episode Title": "Episode 1 - Jane Smith",
+        "Website URLs": "https://janesmith.com",
+        "Interviewee Metadata": '{"role":"coach"}',
         "_disposition": "auto",
     }
     base.update(kwargs)
@@ -83,6 +88,43 @@ def test_dispatch_hunter_sequence_sets_lead_id_and_status(mock_post, monkeypatch
     payload = mock_post.call_args.kwargs["json"]
     assert payload["emails"] == ["jane@example.com"]
     assert payload["custom_variables"]["archetype"] == "health"
+    assert payload["custom_variables"]["podcast_name"] == "Healing Show"
+    assert payload["custom_variables"]["episode_title"] == "Episode 1 - Jane Smith"
+    assert payload["custom_variables"]["website_urls"] == "https://janesmith.com"
+    assert payload["custom_variables"]["interviewee_metadata"] == '{"role":"coach"}'
+    assert payload["custom_variables"]["interviewee_name"] == "Jane Smith"
+
+
+@patch("outreach.hunter_sequences.requests.post")
+def test_dispatch_hunter_sequence_non_podcast_lead_omits_podcast_custom_vars(
+    mock_post, monkeypatch
+):
+    monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
+    mock_post.return_value.json.return_value = {
+        "recipients_added": [{"id": "hunter-lead-001"}]
+    }
+    mock_post.return_value.raise_for_status = MagicMock()
+
+    lead = {
+        "Archetype": "health",
+        "Source": "youtube",
+        "Source URL": "https://www.youtube.com/watch?v=xyz",
+        "Status": "New",
+        "Email": "alex@example.com",
+        "First Name": "Alex",
+        "Last Name": "Jones",
+        "Story Summary": "Alex recovered from injury.",
+        "_disposition": "auto",
+    }
+    hs.dispatch(lead)
+
+    custom_vars = mock_post.call_args.kwargs["json"]["custom_variables"]
+    assert "podcast_name" not in custom_vars
+    assert "episode_title" not in custom_vars
+    assert "website_urls" not in custom_vars
+    assert "interviewee_metadata" not in custom_vars
+    assert custom_vars["interviewee_first_name"] == "Alex"
+    assert custom_vars["interviewee_last_name"] == "Jones"
 
 
 @patch("outreach.hunter_sequences.requests.post")
@@ -135,13 +177,32 @@ def test_dispatch_review_queue_calls_airtable(monkeypatch):
     monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
     mock_at = MagicMock()
 
-    lead = _lead(_disposition="review")
+    lead = _lead(_disposition="review")  # Source="youtube"
     hs.dispatch(lead, airtable_client=mock_at)
 
     mock_at.add_to_manual_queue.assert_called_once()
     queued = mock_at.add_to_manual_queue.call_args[0][0]
     assert queued["Source URL"] == lead["Source URL"]
     assert queued["Status"] == "Pending"
+    # YouTube leads do not get podcast fields — those belong to listennotes source
+    assert "Podcast Name" not in queued
+    assert "Episode Title" not in queued
+    assert "Website URLs" not in queued
+    assert "Interviewee Metadata" not in queued
+
+
+def test_dispatch_review_queue_listennotes_includes_podcast_fields(monkeypatch):
+    monkeypatch.setattr(hs, "HUNTER_SEQUENCE_ID", "sequence-abc")
+    mock_at = MagicMock()
+
+    lead = _lead(Source="listennotes", _disposition="review")
+    hs.dispatch(lead, airtable_client=mock_at)
+
+    queued = mock_at.add_to_manual_queue.call_args[0][0]
+    assert queued["Podcast Name"] == "Healing Show"
+    assert queued["Episode Title"] == "Episode 1 - Jane Smith"
+    assert queued["Website URLs"] == "https://janesmith.com"
+    assert queued["Interviewee Metadata"] == '{"role":"coach"}'
 
 
 def test_dispatch_review_queue_includes_reddit_fields(monkeypatch):

@@ -16,8 +16,12 @@ Authentication: every request must include the header
 
 import hmac
 import logging
+from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, request
+
+if TYPE_CHECKING:
+    from flask import Request, Response
 
 from config.settings import WEBHOOK_SECRET
 from crm.airtable import get_client
@@ -28,7 +32,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
-def _verify_secret(req) -> bool:
+def _verify_secret(req: "Request") -> bool:
     """Return True only when the request carries the correct webhook secret."""
     if not WEBHOOK_SECRET:
         logger.warning("WEBHOOK_SECRET is not set — all requests will be rejected")
@@ -72,7 +76,7 @@ def _reply_sentiment(data: dict, event_type: str) -> str:
 
 
 @app.route("/webhook/hunter", methods=["POST"])
-def hunter_webhook():
+def hunter_webhook() -> "Response | tuple[Response, int]":
     """Handle a Hunter Sequences webhook and update Airtable."""
     if not _verify_secret(request):
         return jsonify({"ok": False, "error": "unauthorized"}), 401

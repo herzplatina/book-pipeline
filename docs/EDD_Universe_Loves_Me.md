@@ -123,15 +123,18 @@ For leads that pass the Claude score threshold, the YouTube channel URL is retai
 
 ### **Data flow**
 
-| \#    | Step name              | Input                        | Process                                                   | Output                                               |
-| :---- | :--------------------- | :--------------------------- | :-------------------------------------------------------- | :--------------------------------------------------- |
-| **1** | **ListenNotes search** | query list                   | GET /api/v2/search?q=\&type=episode                       | {podcast_name, episode_title, description, pub_date} |
-| **2** | **Normalize lead**     | episode result               | title + description become `_content`; source=listennotes | canonical raw lead dict                              |
-| **3** | **Score all**          | episode title + description  | Claude API scorer per record                              | score, archetype_match, summary                      |
-| **4** | **Future paused work** | nonprofit/Apify/archive URLs | not active in default pipeline                            | revisit after current four-source pipeline is stable |
+| \#    | Step name              | Input                        | Process                                                                                                                                               | Output                                                                         |
+| :---- | :--------------------- | :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| **1** | **ListenNotes search** | query list                   | GET /api/v2/search?q=\&type=episode                                                                                                                   | {podcast_name, episode_title, description, pub_date}                           |
+| **2** | **Normalize lead**     | episode result               | title + description become `_content`; source=listennotes                                                                                             | canonical raw lead dict                                                        |
+| **3** | **Parse name/contact** | episode title + description  | extract interviewee name with deterministic cues first, then call Haiku only when the guest name remains unresolved; also extract emails and websites | `Name`, `First Name`, `Last Name`, `_emails`, `_website_urls`, `_contact_clue` |
+| **4** | **Score all**          | episode title + description  | Claude API scorer per record                                                                                                                          | score, archetype_match, summary                                                |
+| **5** | **Future paused work** | nonprofit/Apify/archive URLs | not active in default pipeline                                                                                                                        | revisit after current four-source pipeline is stable                           |
 
 | ✋ HANDCRAFT REQUIRED Nonprofit alumni and Life After Hate contacts MUST go to manual_queue — never automated sequence outreach. The org comms director email is the first handcrafted message, not contact to the individual. Do not attempt Hunter.io for StoryCorps or annual report subjects — hit rate under 15%. |
 | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
+ListenNotes show notes are not treated as full podcast transcripts. They usually contain the episode title, description, guest bio or summary text, and links. We extract interviewee names deterministically when the show notes are explicit enough; only unresolved cases fall back to the cheap Haiku call. We also extract emails and non-podcast website URLs. If an email is found, it becomes `_contact_clue`; otherwise the first extracted website URL becomes `_contact_clue` so Hunter can attempt website/domain-based enrichment later. Airtable stores podcast metadata in `Podcast Name` and `Episode Title`, and extracted websites in `Website URLs`.
 
 ## **Module 5 — Professional discovery (paused)**
 

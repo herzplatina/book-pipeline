@@ -9,6 +9,7 @@ Usage:
 """
 
 import argparse
+import contextlib
 import json
 import logging
 import sys
@@ -17,10 +18,19 @@ from pathlib import Path
 
 from config.settings import CLAUDE_SCORE_THRESHOLD
 from crm.airtable import get_client
+from crm.schema import build_queue_record
 from enrichment.hunter import enrich
-from modules import m1_youtube, m2_reddit, m3_serpapi, m4_nonprofits, m5_apollo
+from modules import m1_youtube, m2_reddit, m3_serpapi, m4_listennotes, m5_apollo
+from notifications.email_report import send_run_report
 from outreach.hunter_sequences import dispatch, route
 from scoring.claude_scorer import score
+
+# Smoke-test matrix limits — one call per source, enough to exercise the full
+# pipeline path without burning API quota.
+_SMOKE_YOUTUBE_MAX_RESULTS = 5
+_SMOKE_SERPAPI_MAX_CELLS = 3
+_SMOKE_REDDIT_LIMIT = 5
+_SMOKE_LISTENNOTES_QUERIES = 1
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +39,7 @@ MODULES: dict = {
     "youtube": m1_youtube,
     "reddit": m2_reddit,
     "serpapi": m3_serpapi,
-    "listennotes": m4_nonprofits,
+    "listennotes": m4_listennotes,
     "apollo": m5_apollo,
 }
 
@@ -113,6 +123,10 @@ def _checkpoint_lead(lead: dict) -> dict:
         "source": lead.get("Source"),
         "source_url": lead.get("Source URL"),
         "channel_url": lead.get("Channel URL"),
+        "podcast_name": lead.get("Podcast Name"),
+        "episode_title": lead.get("Episode Title"),
+        "website_urls": lead.get("Website URLs"),
+        "interviewee_metadata": lead.get("Interviewee Metadata"),
         "archetype": lead.get("Archetype"),
         "claude_score": lead.get("Claude Score"),
         "archetype_match": lead.get("_archetype_match"),
@@ -132,11 +146,75 @@ def print_summary(summary: dict) -> None:
         print(f"  {k:<16} {v}")
 
 
+@contextlib.contextmanager
+def _apply_smoke_test_config():
+    """Temporarily patch each module's globals to minimal smoke-test values.
+
+    Modules import names from config.settings at module load time, so patching
+    the settings module itself has no effect — we must update the references
+    in each module's own namespace instead.
+
+    Originals are saved and restored so repeated calls within the same process
+    (e.g. tests) start from the same baseline.
+    """
+    _orig_yt_queries = m1_youtube.YOUTUBE_SEARCH_QUERIES
+    _orig_yt_filters = m1_youtube.YOUTUBE_FILTERS
+    _orig_rd_subreddits = m2_reddit.SUBREDDITS
+    _orig_rd_keywords = m2_reddit.REDDIT_KEYWORDS
+    _orig_rd_filters = m2_reddit.REDDIT_FILTERS
+    _orig_ln_queries = m4_listennotes.LISTENNOTES_QUERIES
+    _orig_sp_max_cells = m3_serpapi._smoke_max_cells
+
+    try:
+        # YouTube: 1 query per archetype, 5 results each
+        m1_youtube.YOUTUBE_SEARCH_QUERIES = {
+            archetype: queries[:1] for archetype, queries in _orig_yt_queries.items()
+        }
+        m1_youtube.YOUTUBE_FILTERS = {
+            **_orig_yt_filters,
+            "maxResults": _SMOKE_YOUTUBE_MAX_RESULTS,
+        }
+
+        # Reddit: 1 subreddit per archetype, 1 keyword, reduced limit
+        m2_reddit.SUBREDDITS = {
+            archetype: subs[:1] for archetype, subs in _orig_rd_subreddits.items()
+        }
+        m2_reddit.REDDIT_KEYWORDS = _orig_rd_keywords[:1]
+        m2_reddit.REDDIT_FILTERS = {**_orig_rd_filters, "limit": _SMOKE_REDDIT_LIMIT}
+
+        # ListenNotes: 1 query
+        m4_listennotes.LISTENNOTES_QUERIES = _orig_ln_queries[
+            :_SMOKE_LISTENNOTES_QUERIES
+        ]
+
+        # SerpApi: cap matrix cells
+        m3_serpapi._smoke_max_cells = _SMOKE_SERPAPI_MAX_CELLS
+
+        logger.info(
+            "Smoke-test mode: YouTube maxResults=%d, Reddit limit=%d, "
+            "ListenNotes queries=%d, SerpApi max_cells=%d",
+            _SMOKE_YOUTUBE_MAX_RESULTS,
+            _SMOKE_REDDIT_LIMIT,
+            _SMOKE_LISTENNOTES_QUERIES,
+            _SMOKE_SERPAPI_MAX_CELLS,
+        )
+        yield
+    finally:
+        m1_youtube.YOUTUBE_SEARCH_QUERIES = _orig_yt_queries
+        m1_youtube.YOUTUBE_FILTERS = _orig_yt_filters
+        m2_reddit.SUBREDDITS = _orig_rd_subreddits
+        m2_reddit.REDDIT_KEYWORDS = _orig_rd_keywords
+        m2_reddit.REDDIT_FILTERS = _orig_rd_filters
+        m4_listennotes.LISTENNOTES_QUERIES = _orig_ln_queries
+        m3_serpapi._smoke_max_cells = _orig_sp_max_cells
+
+
 def run(
     module_names: list[str] | None = None,
     *,
     report_dir: str | Path | None = None,
     no_dispatch: bool = False,
+    smoke_test: bool = False,
 ) -> dict:
     """Run the pipeline end-to-end. Returns a summary dict.
 
@@ -151,6 +229,21 @@ def run(
         Summary with keys: discovered, qualifying, dispatched,
         review_queue, skipped, errors.
     """
+    smoke_ctx = _apply_smoke_test_config() if smoke_test else contextlib.nullcontext()
+    with smoke_ctx:
+        return _run_inner(
+            module_names,
+            report_dir=report_dir,
+            no_dispatch=no_dispatch,
+        )
+
+
+def _run_inner(
+    module_names: list[str] | None = None,
+    *,
+    report_dir: str | Path | None = None,
+    no_dispatch: bool = False,
+) -> dict:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     names = module_names or DEFAULT_MODULES
     airtable = get_client()
@@ -201,15 +294,40 @@ def run(
                 lead.get("Claude Score", ""),
             )
 
-    # --- Stage 4: Enrich ---
+    # --- Stage 4: Enrich + per-source stats init ---
+    per_source: dict[str, dict] = {}
     for lead in qualifying:
+        src = lead.get("Source", "unknown")
+        stats = per_source.setdefault(
+            src,
+            {
+                "qualifying": 0,
+                "scores": [],
+                "hunter_enriched": 0,
+                "hunter_errors": {},
+                "dispatched": 0,
+                "contacts_upserted": 0,
+                "dm_queue_written": 0,
+            },
+        )
+        stats["qualifying"] += 1
+        if s := lead.get("Claude Score"):
+            stats["scores"].append(s)
+
+        had_email = bool(lead.get("Email"))
+        hunter_errors: list[dict] = []
         try:
-            enrich(lead)
+            enrich(lead, _errors=hunter_errors)
+            if not had_email and lead.get("Email"):
+                stats["hunter_enriched"] += 1
         except Exception as exc:
             logger.exception(
                 "Enrichment failed for url=%s", lead.get("Source URL", "?")
             )
             _record_error(errors, stage="enrich", exc=exc, lead=lead)
+        for e in hunter_errors:
+            key = f"{e['type']} {e.get('status', '')}"
+            stats["hunter_errors"][key] = stats["hunter_errors"].get(key, 0) + 1
 
     # --- Stage 5: Dispatch + CRM routing ---
     # Routing rules:
@@ -219,6 +337,8 @@ def run(
     _decision_key = {"hunter_sequence": "dispatched", "skip": "skipped"}
     counts = {"dispatched": 0, "review_queue": 0, "skipped": 0}
     for lead in qualifying:
+        src = lead.get("Source", "unknown")
+        stats = per_source[src]
         # Determine routing — dispatch() sets _outreach_decision as a side-effect,
         # so call route() first when dispatch is suppressed (--no-dispatch testing).
         if not no_dispatch:
@@ -231,6 +351,18 @@ def run(
                 _record_error(errors, stage="dispatch", exc=exc, lead=lead)
         else:
             lead["_outreach_decision"] = route(lead)
+            # In no-dispatch mode, review_queue leads still need to reach the
+            # Manual DM Queue — dispatch() is suppressed so we write directly.
+            if lead["_outreach_decision"] == "review_queue":
+                try:
+                    airtable.add_to_manual_queue(build_queue_record(lead))
+                    lead["_dm_queue_written"] = True
+                except Exception as exc:
+                    logger.exception(
+                        "Manual queue write failed for url=%s",
+                        lead.get("Source URL", "?"),
+                    )
+                    _record_error(errors, stage="manual_queue", exc=exc, lead=lead)
 
         decision = lead.get("_outreach_decision", "skip")
         raw_key = _decision_key.get(decision, decision)
@@ -238,10 +370,13 @@ def run(
             counts[raw_key] += 1
 
         # Only automatable leads go into the Contacts table.
-        # review_queue leads are already written to the Manual DM Queue by dispatch().
+        # review_queue leads are written to the Manual DM Queue by dispatch()
+        # (live mode) or the no-dispatch block above (smoke-test mode).
         if decision == "hunter_sequence":
+            stats["dispatched"] += 1
             try:
                 airtable.upsert(lead)
+                stats["contacts_upserted"] += 1
             except Exception as exc:
                 logger.exception(
                     "Airtable upsert failed for url=%s", lead.get("Source URL", "?")
@@ -253,6 +388,9 @@ def run(
                 decision,
                 lead.get("Source URL", ""),
             )
+
+        if lead.get("_dm_queue_written"):
+            stats["dm_queue_written"] += 1
 
     summary = {
         "discovered": len(all_raw),
@@ -270,6 +408,7 @@ def run(
             report_dir=report_dir,
             run_id=run_id,
         )
+    send_run_report(run_id, summary, per_source)
     return summary
 
 
@@ -302,6 +441,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip outreach dispatch; still enriches and upserts to Airtable.",
     )
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help=(
+            "Minimal discovery: 1 query/source, 5 YouTube results, "
+            f"{_SMOKE_SERPAPI_MAX_CELLS} SerpApi cells. Full pipeline path, "
+            "reduced API quota."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -316,5 +464,6 @@ if __name__ == "__main__":
         args.modules,
         report_dir=None if args.no_report else args.report_dir,
         no_dispatch=args.no_dispatch,
+        smoke_test=args.smoke_test,
     )
     print_summary(result)

@@ -11,11 +11,11 @@ from urllib.parse import urlparse
 import requests
 
 from config.settings import HUNTER_CONFIDENCE_MIN, require_env
+from utils import _EMAIL_RE
 
 logger = logging.getLogger(__name__)
 
 _HUNTER_BASE = "https://api.hunter.io/v2"
-_EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
 
 # Never Hunter-search these domains — they return platform employee emails,
 # not the post author's contact. Fall through to source-specific fallbacks instead.
@@ -50,8 +50,17 @@ def _set_email(lead: dict, email: str, confidence: int) -> None:
     lead["Contact Value"] = email
 
 
+def _record_hunter_error(exc: requests.HTTPError, _errors: list | None) -> None:
+    if _errors is not None:
+        status = exc.response.status_code if exc.response is not None else 0
+        _errors.append({"type": "HTTPError", "status": status, "message": str(exc)})
+
+
 def _hunter_email_finder(
-    domain: str, first_name: str, last_name: str
+    domain: str,
+    first_name: str,
+    last_name: str,
+    _errors: list | None = None,
 ) -> tuple[str, int] | None:
     """Call Hunter email-finder. Returns (email, confidence) or None."""
     try:
@@ -73,10 +82,14 @@ def _hunter_email_finder(
             return email, confidence
     except requests.HTTPError as exc:
         logger.warning("Hunter email-finder failed: %s", exc)
+        _record_hunter_error(exc, _errors)
     return None
 
 
-def _hunter_domain_search(domain: str) -> tuple[str, int] | None:
+def _hunter_domain_search(
+    domain: str,
+    _errors: list | None = None,
+) -> tuple[str, int] | None:
     """Call Hunter domain-search. Returns highest-confidence (email, score) or None."""
     try:
         resp = requests.get(
@@ -99,10 +112,11 @@ def _hunter_domain_search(domain: str) -> tuple[str, int] | None:
             return max(qualified, key=lambda t: t[1])
     except requests.HTTPError as exc:
         logger.warning("Hunter domain-search failed: %s", exc)
+        _record_hunter_error(exc, _errors)
     return None
 
 
-def enrich(lead: dict) -> dict:
+def enrich(lead: dict, *, _errors: list | None = None) -> dict:
     """Run Hunter.io waterfall enrichment on a scored lead. Mutates and returns lead.
 
     Waterfall:
@@ -131,13 +145,13 @@ def enrich(lead: dict) -> dict:
 
     if domain:
         if first and last:
-            result = _hunter_email_finder(domain, first, last)
+            result = _hunter_email_finder(domain, first, last, _errors)
             if result:
                 _set_email(lead, *result)
                 logger.debug("Hunter email-finder → %s (%d%%)", *result)
                 return lead
 
-        result = _hunter_domain_search(domain)
+        result = _hunter_domain_search(domain, _errors)
         if result:
             _set_email(lead, *result)
             logger.debug("Hunter domain-search → %s (%d%%)", *result)

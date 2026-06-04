@@ -14,7 +14,7 @@ from config.settings import (
     HUNTER_SEQUENCE_ID,
     require_env,
 )
-from crm.schema import is_handcraft_required
+from crm.schema import build_queue_record, is_handcraft_required
 
 if TYPE_CHECKING:
     from crm.airtable import AirtableClient
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _HUNTER_BASE = "https://api.hunter.io/v2"
+_MAX_CUSTOM_VALUE_LEN = 1000
 
 
 class HunterSequenceError(RuntimeError):
@@ -65,7 +66,7 @@ def _recipient_id(result: dict) -> str:
             return str(result[key])
 
     recipients = result.get("recipients_added") or result.get("recipients") or []
-    if recipients and isinstance(recipients[0], dict):
+    if isinstance(recipients, list) and recipients and isinstance(recipients[0], dict):
         for key in ("id", "lead_id", "recipient_id"):
             if recipients[0].get(key):
                 return str(recipients[0][key])
@@ -82,6 +83,34 @@ def _recipient_was_added(result: dict) -> bool:
     if isinstance(recipients, int):
         return recipients > 0
     return not result.get("skipped_recipients")
+
+
+def _trim_value(value: object) -> str:
+    text = "" if value is None else str(value)
+    return text[:_MAX_CUSTOM_VALUE_LEN]
+
+
+def _sequence_custom_vars(lead: dict) -> dict[str, str]:
+    """Per-lead custom variables for the Hunter Sequence payload.
+
+    Only populated fields are included — omitting a variable is equivalent to
+    an empty string in Hunter's template substitution, but keeps the payload
+    clean and avoids sending unused keys for non-podcast leads.
+    """
+    mapping = (
+        ("Podcast Name", "podcast_name"),
+        ("Episode Title", "episode_title"),
+        ("Website URLs", "website_urls"),
+        ("Interviewee Metadata", "interviewee_metadata"),
+        ("Name", "interviewee_name"),
+        ("First Name", "interviewee_first_name"),
+        ("Last Name", "interviewee_last_name"),
+    )
+    return {
+        snake_key: _trim_value(lead[field])
+        for field, snake_key in mapping
+        if lead.get(field)
+    }
 
 
 def _add_to_hunter_sequence(lead: dict) -> dict:
@@ -103,6 +132,7 @@ def _add_to_hunter_sequence(lead: dict) -> dict:
             "story_summary": lead.get("Story Summary", ""),
             "city": lead.get("City", ""),
             "archetype": archetype,
+            **_sequence_custom_vars(lead),
         },
     }
     resp = requests.post(
@@ -142,19 +172,8 @@ def dispatch(lead: dict, airtable_client: "AirtableClient | None" = None) -> dic
 
     elif decision == "review_queue" and airtable_client is not None:
         try:
-            queue_fields: dict = {
-                "Source URL": lead.get("Source URL", ""),
-                "Archetype": lead.get("Archetype", ""),
-                "Name": lead.get("Name", ""),
-                "Contact Method": lead.get("Contact Method", ""),
-                "Contact Value": lead.get("Contact Value", ""),
-                "Status": "Pending",
-                "Notes": lead.get("Story Summary", ""),
-            }
-            for _field in ("Reddit Username", "Subreddit"):
-                if lead.get(_field):
-                    queue_fields[_field] = lead[_field]
-            airtable_client.add_to_manual_queue(queue_fields)
+            airtable_client.add_to_manual_queue(build_queue_record(lead))
+            lead["_dm_queue_written"] = True
             logger.info("Queued for review: %s", lead.get("Source URL"))
         except Exception:
             logger.exception(

@@ -26,8 +26,8 @@ _REGISTRY: dict[str, dict] = {
         "detail_field": "Archetype",
     },
     "m3_serpapi": {"detail_field": "City", "detail_width": 15},
-    "listennotes": {"import_name": "m4_nonprofits", "detail_field": "Archetype"},
-    "m4_nonprofits": {"detail_field": "Archetype"},
+    "listennotes": {"import_name": "m4_listennotes", "detail_field": "Archetype"},
+    "m4_listennotes": {"detail_field": "Archetype"},
     "m5_apollo": {"detail_field": "Email", "detail_width": 35, "url_width": 50},
 }
 
