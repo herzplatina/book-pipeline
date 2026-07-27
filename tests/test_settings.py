@@ -31,7 +31,7 @@ def test_require_env_raises_clear_error(monkeypatch):
 
     try:
         require_env("BOOK_PIPELINE_TEST_REQUIRED")
-    except EnvironmentError as exc:
+    except OSError as exc:
         assert str(exc) == (
             "Missing required environment variable: BOOK_PIPELINE_TEST_REQUIRED"
         )

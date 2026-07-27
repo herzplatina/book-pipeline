@@ -6,7 +6,6 @@ from unittest.mock import patch
 import modules.m1_youtube as m1
 from config.settings import YOUTUBE_SEARCH_QUERIES
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

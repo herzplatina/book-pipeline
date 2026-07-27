@@ -5,10 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scoring.prompts import ARCHETYPE_HINTS, build_user_message
 from scoring import claude_scorer
 from scoring.claude_scorer import ClaudeScorer, _parse_json_object, get_disposition
-
+from scoring.prompts import ARCHETYPE_HINTS, build_user_message
 
 # ---------------------------------------------------------------------------
 # prompts.py

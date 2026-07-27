@@ -2,9 +2,7 @@
 
 from unittest.mock import patch
 
-
 import modules.m3_serpapi as m3
-
 
 # ---------------------------------------------------------------------------
 # Helpers
