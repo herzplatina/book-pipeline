@@ -8,9 +8,7 @@ Node.js 24 runtime and reports as a deprecation.
 import re
 from pathlib import Path
 
-import pytest
-
-yaml = pytest.importorskip("yaml")
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
@@ -27,6 +25,13 @@ MINIMUM_ACTION_MAJORS = {
 }
 
 MAJOR_VERSION_PATTERN = re.compile(r"^v(\d+)")
+COMMIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+
+# `uses: owner/action@<ref>  # v7.0.1` -- captures the trailing version comment
+# that accompanies a SHA pin.
+USES_LINE_PATTERN = re.compile(
+    r"uses:\s*(?P<ref>\S+)\s*#\s*(?P<comment>v\d+\S*)",
+)
 
 
 def _iter_uses_refs(node):
@@ -46,17 +51,40 @@ def _workflow_files():
     return sorted(WORKFLOW_DIR.glob("*.yml")) + sorted(WORKFLOW_DIR.glob("*.yaml"))
 
 
+def _sha_pin_comments(text):
+    """Map a SHA ref to the `# vN.N.N` comment documenting the version it pins.
+
+    SHA pinning is the recommended supply-chain hardening, so the runtime
+    policy has to be checkable without forcing a downgrade to a tag pin.
+    """
+    versions = {}
+    for match in USES_LINE_PATTERN.finditer(text):
+        # The captured ref is the whole `owner/action@sha`; key on the sha.
+        _, _, pinned = match.group("ref").partition("@")
+        if COMMIT_SHA_PATTERN.match(pinned):
+            versions[pinned] = match.group("comment")
+    return versions
+
+
 def _external_action_refs():
-    """Return (workflow_name, action, ref) for each third-party action used."""
+    """Return (workflow_name, action, ref) for each third-party action used.
+
+    `ref` is normalised to a version string: a SHA pin resolves to the version
+    named in its trailing comment, so both pinning styles are comparable.
+    """
     refs = []
     for workflow in _workflow_files():
-        parsed = yaml.safe_load(workflow.read_text())
-        for used in _iter_uses_refs(parsed):
+        text = workflow.read_text()
+        sha_versions = _sha_pin_comments(text)
+        for used in _iter_uses_refs(yaml.safe_load(text)):
             # Local composite actions and container actions carry no pinned
             # major version, so the Node runtime policy does not apply.
             if used.startswith((".", "docker://")):
                 continue
             action, _, ref = used.partition("@")
+            if COMMIT_SHA_PATTERN.match(ref):
+                # Unresolvable SHA pins stay as-is and are reported below.
+                ref = sha_versions.get(ref, ref)
             refs.append((workflow.name, action, ref))
     return refs
 
@@ -79,8 +107,9 @@ def test_actions_are_pinned_to_a_node24_major():
         match = MAJOR_VERSION_PATTERN.match(ref)
         assert match, (
             f"{workflow_name}: {action} is pinned to {ref!r}, which has no "
-            f"readable major version. Pin it to a vN tag so the Node runtime "
-            f"can be verified."
+            "readable major version. Use a vN tag, or keep the SHA pin and "
+            "add a trailing version comment (`# v7.0.1`) so the Node runtime "
+            "can be verified."
         )
 
         major = int(match.group(1))
@@ -96,7 +125,11 @@ def test_actions_are_pinned_to_a_node24_major():
 
 
 def test_every_action_has_a_declared_minimum_major():
-    """A new action must be added to the policy, so it cannot silently rot."""
+    """A new action must be vetted against the policy before it can be used.
+
+    This pins the floor at today's runtime; it does not predict the next
+    deprecation. Dependabot is what keeps the floor itself moving.
+    """
     unknown = {
         f"{action} (in {workflow_name})"
         for workflow_name, action, _ in _external_action_refs()
