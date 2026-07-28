@@ -7,8 +7,8 @@ discover() returns raw leads with _content set to episode title + show notes.
 Scoring is handled downstream by scoring.claude_scorer.
 """
 
-import logging
 import json
+import logging
 import re
 import time
 from urllib.parse import urlparse
@@ -208,7 +208,7 @@ def _extract_interviewee_profile(
         )
         response_text = response.content[0].text
         llm_profile = _parse_json_object(response_text)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - best-effort LLM fallback; any failure returns the regex-only profile
         logger.debug("ListenNotes profile extraction fallback failed: %s", exc)
         return profile
 

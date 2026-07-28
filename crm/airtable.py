@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from crm.schema import CONTACTS_FIELDS, validate_lead, is_handcraft_required
+from crm.schema import CONTACTS_FIELDS, is_handcraft_required, validate_lead
 
 _BASE_URL = "https://api.airtable.com/v0"
 _TABLE_NAME = "Contacts"

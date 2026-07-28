@@ -1,0 +1,6 @@
+[lint.per-file-ignores]
+"tests/*" = [
+    "I001",    # import sorting — test readability over style
+    "PIE807",  # useless-lambda — lambda: [] is more readable in test context
+    "UP024",   # aliased-error — EnvironmentError is the domain alias under test
+]

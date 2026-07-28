@@ -8,6 +8,7 @@ import argparse
 import itertools
 import logging
 import time
+
 import requests
 from newspaper import Article
 

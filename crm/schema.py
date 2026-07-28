@@ -133,7 +133,4 @@ def is_handcraft_required(lead: dict) -> bool:
         return True
     if archetype == "criminal" and source in ("nonprofit", "org_intro"):
         return True
-    if status == "Responded":
-        return True
-
-    return False
+    return status == "Responded"
