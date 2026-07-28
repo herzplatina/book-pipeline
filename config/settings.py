@@ -6,6 +6,7 @@ module-specific smoke tests only require the credentials they actually use.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +16,7 @@ def require_env(key: str) -> str:
     """Return an environment variable or raise a clear configuration error."""
     val = os.environ.get(key)
     if not val:
-        raise EnvironmentError(f"Missing required environment variable: {key}")
+        raise OSError(f"Missing required environment variable: {key}")
     return val
 
 
