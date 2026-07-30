@@ -1,0 +1,15 @@
+version: 2
+
+updates:
+  # Keep GitHub Actions on supported major versions so runner runtime
+  # deprecations (e.g. Node.js) surface as PRs instead of workflow warnings.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"

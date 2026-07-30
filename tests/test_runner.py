@@ -72,7 +72,7 @@ def test_run_handles_empty_discover(mock_logging, caplog):
         caplog.at_level(logging.INFO, logger="modules.runner"),
         patch("scoring.claude_scorer.score", side_effect=lambda lead: lead),
     ):
-        run(lambda: [])
+        run(list)
 
     assert "Found 0 qualified leads (score >= 7) from 0 raw" in caplog.text
 

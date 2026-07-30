@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import enrichment.hunter as h
 
-
 # ---------------------------------------------------------------------------
 # _extract_email_from_clue
 # ---------------------------------------------------------------------------

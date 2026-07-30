@@ -184,5 +184,7 @@ def send_run_report(run_id: str, summary: dict, per_source: dict) -> None:
             server.login(smtp_user, smtp_password)
             server.sendmail(smtp_user, _REPORT_TO, msg.as_string())
         logger.info("Run report emailed to %s", _REPORT_TO)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - reporting must not fail the run
+        # The report is a side effect of a completed run; an SMTP, TLS, or
+        # encoding failure here must never discard the run's actual results.
         logger.error("Failed to send run report email: %s", exc)

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import modules.m2_reddit as m2
 from config.settings import REDDIT_FILTERS, SUBREDDITS
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
