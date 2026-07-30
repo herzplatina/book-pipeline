@@ -14,4 +14,9 @@ _REQUIRED_STUBS = {
 }
 
 for key, val in _REQUIRED_STUBS.items():
-    os.environ.setdefault(key, val)
+    # Not setdefault: GitHub Actions injects an *empty string* for a job-level
+    # env var whose secret is not configured, so the key exists and setdefault
+    # would leave the stub unapplied. Treat empty as unset -- these tests mock
+    # every HTTP call and must never depend on real credentials.
+    if not os.environ.get(key):
+        os.environ[key] = val
