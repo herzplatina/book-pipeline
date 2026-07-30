@@ -3,6 +3,9 @@ youtube-transcript-api>=1.2.0,<2.0.0
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 newspaper3k>=0.2.8
+# newspaper3k imports lxml.html.clean, which lxml moved out into its own
+# package in 5.2. Without this, `import newspaper` fails on lxml >= 5.2.
+lxml_html_clean>=0.4.0
 anthropic>=0.25.0
 pyairtable>=2.2.0
 python-dotenv>=1.0.0
